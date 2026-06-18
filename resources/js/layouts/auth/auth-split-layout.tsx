@@ -17,16 +17,20 @@ export default function AuthSplitLayout({
     const { name, quote } = usePage<SharedData>().props;
 
     return (
-        <div className="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
+        <div className="relative  grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
+            {/* <div className="absolute inset-0 bg-[url('/img/bglogin.png')] bg-cover bg-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-black/20 to-red-900/70"></div>
+                <div className="absolute inset-0 bg-gradient-to-bl from-red-900/70 via-black/20 to-blue-900/80"></div>
+            </div> */}
             <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-                <div className="absolute inset-0 bg-zinc-900" />
+                <div className="absolute inset-0 bg-[url('/img/bglogin.png')] bg-no-repeat bg-cover bg-center" />
                 <Link
-                    href={home()}
-                    className="relative z-20 flex items-center text-lg font-medium"
-                >
-                    <AppLogoIcon className="mr-2 size-8 fill-current text-white" />
-                    {name}
-                </Link>
+    href={home()}
+    className="relative z-20 flex items-center text-lg font-medium text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+>
+    <AppLogoIcon className="mr-2 size-8 fill-current text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
+    {name}
+</Link>
                 {quote && (
                     <div className="relative z-20 mt-auto">
                         <blockquote className="space-y-2">

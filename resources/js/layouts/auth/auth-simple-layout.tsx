@@ -16,6 +16,10 @@ export default function AuthSimpleLayout({
 }: PropsWithChildren<AuthLayoutProps>) {
     return (
         <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
+            <div className="absolute inset-0 bg-[url('/img/bglogin.png')] bg-cover bg-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-black/20 to-red-900/70"></div>
+                <div className="absolute inset-0 bg-gradient-to-bl from-red-900/70 via-black/20 to-blue-900/80"></div>
+            </div>
             <div className="w-full max-w-sm">
                 <div className="flex flex-col gap-8">
                     <div className="flex flex-col items-center gap-4">
