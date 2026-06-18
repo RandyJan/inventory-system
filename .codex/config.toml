@@ -1,0 +1,4 @@
+[mcp_servers.laravel-boost]
+command = "wsl.exe"
+args = ["/usr/bin/php8.4", "/home/mjydelima/projects/SYSTEM_TEMPLATE_AD_LOGIN/artisan", "boost:mcp"]
+cwd = "/home/mjydelima/projects/SYSTEM_TEMPLATE_AD_LOGIN"

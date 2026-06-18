@@ -1,0 +1,104 @@
+services:
+  docuforwding:
+    build:
+      context: .
+      target: production
+    image: docuforwarding
+    container_name: docuforwarding_app
+    restart: unless-stopped
+    ports:
+      - '8000:8000'
+    environment:
+      OCTANE_SERVER: frankenphp
+      RUN_MIGRATIONS: 'true'
+      #REVERB_HOST: ippmis-dev-fo4a.dswd.gov.ph
+      REVERB_PORT: '8080'
+      OCTANE_MAX_EXECUTION_TIME: '300'
+      # command: php artisan octane:frankenphp --workers=4 --port=8000 --caddyfile=/app/Caddyfile
+    sysctls:
+      net.ipv4.ip_local_port_range: '1024 65535'
+      net.ipv4.tcp_tw_reuse: '1'
+      net.ipv4.tcp_fin_timeout: '15'
+    command: php artisan octane:frankenphp --workers=16 --port=8000 --log-level=ERROR --caddyfile=/app/Caddyfile
+    volumes:
+      # - /home/prime/primary_storage/ippmis:/app/storage
+      - storage:/app/storage
+    networks:
+      - dswd4a_network
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+      - 'hrpears-dev-fo4a.dswd.gov.ph:172.31.48.25'
+
+  reverb:
+    image: docuforwarding
+    container_name: docuforwarding_reverb
+    working_dir: /app
+    environment:
+      LOG_CHANNEL: stderr
+      REVERB_HOST: '0.0.0.0'
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    networks:
+      - dswd4a_network
+    ports:
+      - '8080:8080'
+    depends_on:
+      - ippmis
+    # OVERRIDE: Reverb uses 8080, not 2019
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    image: docuforwarding
+    container_name: docuforwarding_worker
+    working_dir: /app
+    environment:
+      LOG_CHANNEL: stderr
+      REVERB_SCHEME: http
+      REVERB_HOST: reverb
+      REVERB_PORT: '8080'
+    command: php artisan queue:work database --queue=prod --tries=3 --sleep=1 --timeout=300 --verbose
+    depends_on:
+      - ippmis
+    volumes:
+      # - /home/prime/primary_storage/ippmis:/app/storage
+      - storage:/app/storage
+    networks:
+      - dswd4a_network
+    restart: unless-stopped
+    # OVERRIDE: No web server here, just check if PHP is alive
+    healthcheck:
+      test: ['CMD', 'php', 'artisan', '--version']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  scheduler:
+    image: docuforwarding
+    container_name: docuforwarding_scheduler
+    environment:
+      LOG_CHANNEL: stderr
+    command: php artisan schedule:work
+    depends_on:
+      - ippmis
+    restart: unless-stopped
+    volumes:
+      # - /home/prime/primary_storage/ippmis:/app/storage
+      - storage:/app/storage
+    networks:
+      - dswd4a_network
+    # OVERRIDE: No web server here, just check if PHP is alive
+    healthcheck:
+      test: ['CMD', 'php', 'artisan', '--version']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  dswd4a_network:
+    driver: bridge
+
+volumes:
+  storage:

@@ -1,0 +1,57 @@
+# Laravel & PHP
+/vendor
+/node_modules
+/public/storage
+/storage/*.key
+#/.env
+#/.env.local
+#/.env.*.backup
+/frankenphp
+/caddy
+/frankenphp-worker.php
+
+# Docker & system files
+Dockerfile
+docker-compose.yml
+docker-compose.override.yml
+.dockerignore
+
+# IDE & editor files
+*.log
+*.cache
+*.swp
+*.swo
+.idea
+.vscode
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# NPM / Yarn lock files (optional, depends on your build)
+npm-debug.log
+yarn-error.log
+# package-lock.json
+# yarn.lock
+
+
+node_modules
+vendor
+.git
+#.env
+
+# Storage section to this:
+storage/app/*
+storage/framework/*
+storage/logs/*
+
+# Bootstrap cache (regenerated during Docker build)
+bootstrap/cache/*.php
+!storage/.gitignore
