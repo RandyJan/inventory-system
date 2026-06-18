@@ -15,7 +15,12 @@ import { index as auditsIndex } from '@/routes/audits';
 import { index as inventoryCategoriesIndex } from '@/routes/inventory-categories';
 import { index as itemsIndex } from '@/routes/items';
 import { index as permissionsIndex } from '@/routes/permissions';
+import { index as purchaseOrdersIndex } from '@/routes/purchase-orders';
+import { index as purchaseRequisitionsIndex } from '@/routes/purchase-requisitions';
 import { index as rolesIndex } from '@/routes/roles';
+import { index as stockIssuancesIndex } from '@/routes/stock-issuances';
+import { index as stockReceivingsIndex } from '@/routes/stock-receivings';
+import { index as stockTransfersIndex } from '@/routes/stock-transfers';
 import { index as suppliersIndex } from '@/routes/suppliers';
 import { index as usersIndex } from '@/routes/users';
 import { index as warehousesIndex } from '@/routes/warehouses';
@@ -28,6 +33,11 @@ import {
     Folder,
     LayoutGrid,
     LockKeyhole,
+    ClipboardList,
+    ShoppingCart,
+    PackageMinus,
+    PackageCheck,
+    Repeat,
     ShieldCheck,
     Truck,
     Tags,
@@ -88,6 +98,51 @@ export function AppSidebar() {
                       title: 'Supplier Management',
                       href: suppliersIndex(),
                       icon: Truck,
+                  },
+              ]
+            : []),
+        ...(can('purchase-requisitions.view')
+            ? [
+                  {
+                      title: 'Purchase Requisitions',
+                      href: purchaseRequisitionsIndex(),
+                      icon: ClipboardList,
+                  },
+              ]
+            : []),
+        ...(can('purchase-orders.view')
+            ? [
+                  {
+                      title: 'Purchase Orders',
+                      href: purchaseOrdersIndex(),
+                      icon: ShoppingCart,
+                  },
+              ]
+            : []),
+        ...(can('stock-receivings.view')
+            ? [
+                  {
+                      title: 'Stock Receiving',
+                      href: stockReceivingsIndex(),
+                      icon: PackageCheck,
+                  },
+              ]
+            : []),
+        ...(can('stock-issuances.view')
+            ? [
+                  {
+                      title: 'Stock Issuance',
+                      href: stockIssuancesIndex(),
+                      icon: PackageMinus,
+                  },
+              ]
+            : []),
+        ...(can('stock-transfers.view')
+            ? [
+                  {
+                      title: 'Stock Transfers',
+                      href: stockTransfersIndex(),
+                      icon: Repeat,
                   },
               ]
             : []),

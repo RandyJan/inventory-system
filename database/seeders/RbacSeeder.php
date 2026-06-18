@@ -76,7 +76,8 @@ class RbacSeeder extends Seeder
 
         $departmentHeadRole->syncPermissions(
             $permissions->filter(fn ($permission) => str_contains($permission->name, 'request') ||
-                str_contains($permission->name, 'approval')
+                str_contains($permission->name, 'approval') ||
+                str_contains($permission->name, 'requisition')
             )->values()
         );
 

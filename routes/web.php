@@ -14,7 +14,12 @@ use App\Http\Controllers\Item\StoreController as ItemStoreController;
 use App\Http\Controllers\Item\UpdateController as ItemUpdateController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PermissionManagementController;
+use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\RoleManagementController;
+use App\Http\Controllers\StockIssuanceController;
+use App\Http\Controllers\StockReceivingController;
+use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierManagementController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\WarehouseManagementController;
@@ -87,6 +92,68 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('suppliers/{supplier}', [SupplierManagementController::class, 'update'])
         ->middleware('can:suppliers.update')
         ->name('suppliers.update');
+
+    Route::get('purchase-requisitions', [PurchaseRequisitionController::class, 'index'])
+        ->middleware('can:purchase-requisitions.view')
+        ->name('purchase-requisitions.index');
+    Route::post('purchase-requisitions', [PurchaseRequisitionController::class, 'store'])
+        ->middleware('can:purchase-requisitions.create')
+        ->name('purchase-requisitions.store');
+    Route::post('purchase-requisitions/{purchaseRequisition}/submit', [PurchaseRequisitionController::class, 'submit'])
+        ->middleware('can:purchase-requisitions.submit')
+        ->name('purchase-requisitions.submit');
+    Route::post('purchase-requisitions/{purchaseRequisition}/approve', [PurchaseRequisitionController::class, 'approve'])
+        ->middleware('can:purchase-requisitions.approve')
+        ->name('purchase-requisitions.approve');
+    Route::post('purchase-requisitions/{purchaseRequisition}/reject', [PurchaseRequisitionController::class, 'reject'])
+        ->middleware('can:purchase-requisitions.approve')
+        ->name('purchase-requisitions.reject');
+    Route::post('purchase-requisitions/{purchaseRequisition}/convert', [PurchaseRequisitionController::class, 'convert'])
+        ->middleware('can:purchase-requisitions.convert')
+        ->name('purchase-requisitions.convert');
+
+    Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])
+        ->middleware('can:purchase-orders.view')
+        ->name('purchase-orders.index');
+    Route::post('purchase-orders', [PurchaseOrderController::class, 'store'])
+        ->middleware('can:purchase-orders.create')
+        ->name('purchase-orders.store');
+    Route::post('purchase-orders/{purchaseOrder}/submit', [PurchaseOrderController::class, 'submit'])
+        ->middleware('can:purchase-orders.submit')
+        ->name('purchase-orders.submit');
+    Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])
+        ->middleware('can:purchase-orders.approve')
+        ->name('purchase-orders.approve');
+    Route::post('purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])
+        ->middleware('can:purchase-orders.approve')
+        ->name('purchase-orders.reject');
+
+    Route::get('stock-receivings', [StockReceivingController::class, 'index'])
+        ->middleware('can:stock-receivings.view')
+        ->name('stock-receivings.index');
+    Route::post('stock-receivings', [StockReceivingController::class, 'store'])
+        ->middleware('can:stock-receivings.create')
+        ->name('stock-receivings.store');
+
+    Route::get('stock-issuances', [StockIssuanceController::class, 'index'])
+        ->middleware('can:stock-issuances.view')
+        ->name('stock-issuances.index');
+    Route::post('stock-issuances', [StockIssuanceController::class, 'store'])
+        ->middleware('can:stock-issuances.create')
+        ->name('stock-issuances.store');
+
+    Route::get('stock-transfers', [StockTransferController::class, 'index'])
+        ->middleware('can:stock-transfers.view')
+        ->name('stock-transfers.index');
+    Route::post('stock-transfers', [StockTransferController::class, 'store'])
+        ->middleware('can:stock-transfers.create')
+        ->name('stock-transfers.store');
+    Route::post('stock-transfers/{stockTransfer}/approve', [StockTransferController::class, 'approve'])
+        ->middleware('can:stock-transfers.approve')
+        ->name('stock-transfers.approve');
+    Route::post('stock-transfers/{stockTransfer}/reject', [StockTransferController::class, 'reject'])
+        ->middleware('can:stock-transfers.approve')
+        ->name('stock-transfers.reject');
 
     Route::get('warehouses', [WarehouseManagementController::class, 'index'])
         ->middleware('can:warehouses.view')

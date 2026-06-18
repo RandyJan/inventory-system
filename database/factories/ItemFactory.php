@@ -47,6 +47,7 @@ class ItemFactory extends Factory
             'subcategory' => $selectedSubcategory,
             'category_id' => null,
             'subcategory_id' => null,
+            'quantity_on_hand' => 0,
             'unit_of_measure' => $this->faker->randomElement(['PCS', 'BOX', 'PACK', 'CASE', 'KG', 'L']),
             'brand' => $this->faker->optional()->company(),
             'manufacturer' => $this->faker->optional()->company(),
