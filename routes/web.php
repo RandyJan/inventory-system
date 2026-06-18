@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryCategory\IndexController as InventoryCategoryIndexController;
 use App\Http\Controllers\InventoryCategory\StoreController as InventoryCategoryStoreController;
 use App\Http\Controllers\InventoryCategory\UpdateController as InventoryCategoryUpdateController;
@@ -29,9 +30,9 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->middleware('can:dashboard.view')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)
+        ->middleware('can:dashboard.view')
+        ->name('dashboard');
 
     // Debug pages
     Route::get('debug/notifications', function () {
