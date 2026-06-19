@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { promptText } from '@/lib/confirm';
 import { cn } from '@/lib/utils';
 import {
     approve,
@@ -190,12 +191,24 @@ export default function PurchaseRequisitionsIndex({
     }
 
     function submitDraft(requisition: Requisition) {
-        router.post(submitRequisition(requisition.id).url, {}, { preserveScroll: true });
+        router.post(
+            submitRequisition(requisition.id).url,
+            {},
+            { preserveScroll: true },
+        );
     }
 
-    function approveRequest(requisition: Requisition) {
-        const approvalRemarks =
-            window.prompt('Approval remarks (optional)') ?? '';
+    async function approveRequest(requisition: Requisition) {
+        const approvalRemarks = await promptText({
+            title: 'Approve purchase request?',
+            label: 'Approval remarks',
+            placeholder: 'Optional remarks',
+            confirmButtonText: 'Approve',
+        });
+
+        if (approvalRemarks === null) {
+            return;
+        }
 
         router.post(
             approve(requisition.id).url,
@@ -204,8 +217,14 @@ export default function PurchaseRequisitionsIndex({
         );
     }
 
-    function rejectRequest(requisition: Requisition) {
-        const approvalRemarks = window.prompt('Reason for rejection');
+    async function rejectRequest(requisition: Requisition) {
+        const approvalRemarks = await promptText({
+            title: 'Reject purchase request?',
+            label: 'Reason for rejection',
+            placeholder: 'Enter the rejection reason',
+            required: true,
+            confirmButtonText: 'Reject',
+        });
 
         if (!approvalRemarks) {
             return;
@@ -218,9 +237,17 @@ export default function PurchaseRequisitionsIndex({
         );
     }
 
-    function convertRequest(requisition: Requisition) {
-        const purchaseOrderReference =
-            window.prompt('Purchase order reference (optional)') ?? '';
+    async function convertRequest(requisition: Requisition) {
+        const purchaseOrderReference = await promptText({
+            title: 'Convert to purchase order?',
+            label: 'Purchase order reference',
+            placeholder: 'Optional PO reference',
+            confirmButtonText: 'Convert',
+        });
+
+        if (purchaseOrderReference === null) {
+            return;
+        }
 
         router.post(
             convert(requisition.id).url,
@@ -586,10 +613,7 @@ function RequisitionDialog({ items }: { items: ItemOption[] }) {
     }
 
     function addLine() {
-        form.setData('lines', [
-            ...form.data.lines,
-            lineDefaults(),
-        ]);
+        form.setData('lines', [...form.data.lines, lineDefaults()]);
     }
 
     function removeLine(index: number) {
@@ -629,7 +653,8 @@ function RequisitionDialog({ items }: { items: ItemOption[] }) {
                           item_description:
                               value === 'custom'
                                   ? line.item_description
-                                  : selectedItem?.label || line.item_description,
+                                  : selectedItem?.label ||
+                                    line.item_description,
                           unit_of_measure:
                               value === 'custom'
                                   ? line.unit_of_measure
@@ -761,9 +786,7 @@ function RequisitionDialog({ items }: { items: ItemOption[] }) {
                     <div className="space-y-3">
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <h3 className="font-medium">
-                                    Requested Items
-                                </h3>
+                                <h3 className="font-medium">Requested Items</h3>
                                 <p className="text-sm text-muted-foreground">
                                     Add inventory-linked or custom requested
                                     items.

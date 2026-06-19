@@ -15,4 +15,6 @@ return [
 
     'site_key' => env('CAPTCHA_SITE_KEY'),
 
+    'enabled' => env('CAPTCHA_ENABLED', true),
+
 ];

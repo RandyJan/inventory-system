@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Item;
 
+use App\Models\Item;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateItemRequest extends FormRequest
 {
@@ -22,9 +24,12 @@ class UpdateItemRequest extends FormRequest
      */
     public function rules(): array
     {
+        $item = $this->route('item');
+        $itemId = $item instanceof Item ? $item->getKey() : $item;
+
         return [
-            'item_code' => ['required', 'string', 'unique:items,item_code,'.$this->route('item'), 'max:50'],
-            'barcode' => ['nullable', 'string', 'unique:items,barcode,'.$this->route('item'), 'max:100'],
+            'item_code' => ['required', 'string', Rule::unique('items', 'item_code')->ignore($itemId), 'max:50'],
+            'barcode' => ['nullable', 'string', Rule::unique('items', 'barcode')->ignore($itemId), 'max:100'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'category' => ['required_without:category_id', 'nullable', 'string', 'max:100'],

@@ -21,6 +21,11 @@ class RbacSeeder extends Seeder
             ]));
 
         // Create roles
+        $administratorRole = Role::firstOrCreate([
+            'name' => 'Administrator',
+            'guard_name' => 'web',
+        ]);
+
         $systemAdministratorRole = Role::firstOrCreate([
             'name' => 'System Administrator',
             'guard_name' => 'web',
@@ -51,9 +56,15 @@ class RbacSeeder extends Seeder
             'guard_name' => 'web',
         ]);
 
+        $guestRole = Role::firstOrCreate([
+            'name' => 'Guest',
+            'guard_name' => 'web',
+        ]);
+
         // Assign permissions
 
         // Full access
+        $administratorRole->syncPermissions($permissions);
         $systemAdministratorRole->syncPermissions($permissions);
 
         // For now, give all permissions.
@@ -85,6 +96,10 @@ class RbacSeeder extends Seeder
             $permissions->filter(fn ($permission) => str_contains($permission->name, '.view') ||
                 str_contains($permission->name, '.read')
             )->values()
+        );
+
+        $guestRole->syncPermissions(
+            $permissions->filter(fn ($permission) => $permission->name === 'dashboard.view')->values()
         );
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

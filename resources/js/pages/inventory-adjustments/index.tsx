@@ -36,24 +36,22 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { promptText } from '@/lib/confirm';
 import { cn } from '@/lib/utils';
 import {
-    approve,
-    reject,
-    index as stockTransfersIndex,
+    index as inventoryAdjustmentsIndex,
     store,
-} from '@/routes/stock-transfers';
+} from '@/routes/inventory-adjustments';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
-    CheckCircle2,
-    Clock3,
+    AlertTriangle,
+    MinusCircle,
     Plus,
-    Repeat,
+    PlusCircle,
     Search,
+    ShieldAlert,
+    SlidersHorizontal,
     Trash2,
-    XCircle,
 } from 'lucide-react';
 import { type FormEvent, type ReactNode, useState } from 'react';
 
@@ -63,110 +61,107 @@ type PageLink = {
     active: boolean;
 };
 
-type Option = {
-    id: number;
-    label: string;
-};
+type AdjustmentType = 'increase' | 'decrease' | 'damaged' | 'lost';
 
-type LocationOption = Option & {
-    warehouse_id: number;
-};
-
-type ItemOption = Option & {
-    warehouse_id: number | null;
-    unit_of_measure: string;
-    quantity_on_hand: number;
-};
-
-type TransferLine = {
+type AdjustmentLine = {
     id: number;
     item: string;
-    quantity_transferred: number;
+    quantity_adjusted: number;
+    quantity_before: number;
+    quantity_after: number;
     unit_of_measure: string;
-};
-
-type Transfer = {
-    id: number;
-    transfer_number: string;
-    source_warehouse: Option;
-    destination_warehouse: Option;
-    destination_location: Option | null;
-    requested_by?: string | null;
-    approved_by?: string | null;
-    requested_date: string;
-    approved_date?: string | null;
-    status: 'pending' | 'approved' | 'rejected';
-    total_quantity_transferred: number;
     remarks?: string | null;
-    approval_remarks?: string | null;
-    lines: TransferLine[];
 };
 
-type PaginatedTransfers = {
-    data: Transfer[];
+type Adjustment = {
+    id: number;
+    adjustment_number: string;
+    adjustment_type: AdjustmentType;
+    reason: string;
+    adjustment_date: string;
+    adjusted_by?: string | null;
+    total_quantity_adjusted: number;
+    remarks?: string | null;
+    lines: AdjustmentLine[];
+};
+
+type PaginatedAdjustments = {
+    data: Adjustment[];
     from: number | null;
     to: number | null;
     total: number;
     links: PageLink[];
 };
 
-type TransferFormData = {
-    transfer_number: string;
-    source_warehouse_id: string;
-    destination_warehouse_id: string;
-    destination_location_id: string;
-    requested_date: string;
+type ItemOption = {
+    id: number;
+    label: string;
+    unit_of_measure: string;
+    quantity_on_hand: number;
+};
+
+type AdjustmentFormData = {
+    adjustment_number: string;
+    adjustment_type: string;
+    reason: string;
+    adjustment_date: string;
     remarks: string;
     lines: {
         item_id: string;
-        quantity_transferred: string;
+        quantity_adjusted: string;
+        remarks: string;
     }[];
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Stock Transfers', href: stockTransfersIndex().url },
+    { title: 'Inventory Adjustments', href: inventoryAdjustmentsIndex().url },
 ];
 
-export default function StockTransfersIndex({
-    transfers,
+export default function InventoryAdjustmentsIndex({
+    adjustments,
     summary,
-    warehouses,
-    locations,
     items,
-    statuses,
+    types,
+    reasons,
     filters,
 }: {
-    transfers: PaginatedTransfers;
+    adjustments: PaginatedAdjustments;
     summary: {
         total: number;
-        pending: number;
-        approved: number;
-        rejected: number;
+        increases: number;
+        decreases: number;
+        damaged: number;
+        lost: number;
+        quantity_adjusted: number;
     };
-    warehouses: Option[];
-    locations: LocationOption[];
     items: ItemOption[];
-    statuses: string[];
+    types: AdjustmentType[];
+    reasons: string[];
     filters: {
         search?: string;
-        status?: string;
+        adjustment_type?: string;
+        reason?: string;
     };
 }) {
     const { auth } = usePage<SharedData>().props;
     const permissions = new Set(auth.permissions ?? []);
-    const canCreate = permissions.has('stock-transfers.create');
-    const canApprove = permissions.has('stock-transfers.approve');
+    const canCreate = permissions.has('inventory-adjustments.create');
     const [search, setSearch] = useState(filters.search ?? '');
-    const [status, setStatus] = useState(filters.status || 'all');
+    const [adjustmentType, setAdjustmentType] = useState(
+        filters.adjustment_type || 'all',
+    );
+    const [reason, setReason] = useState(filters.reason || 'all');
 
     function submitFilters(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         router.get(
-            stockTransfersIndex().url,
+            inventoryAdjustmentsIndex().url,
             {
                 search: search || undefined,
-                status: status === 'all' ? undefined : status,
+                adjustment_type:
+                    adjustmentType === 'all' ? undefined : adjustmentType,
+                reason: reason === 'all' ? undefined : reason,
             },
             {
                 preserveScroll: true,
@@ -176,134 +171,123 @@ export default function StockTransfersIndex({
         );
     }
 
-    async function approveTransfer(transfer: Transfer) {
-        const approvalRemarks = await promptText({
-            title: 'Approve transfer?',
-            label: 'Approval remarks',
-            placeholder: 'Optional remarks',
-            confirmButtonText: 'Approve',
-        });
-
-        if (approvalRemarks === null) {
-            return;
-        }
-
-        router.post(
-            approve(transfer.id).url,
-            { approval_remarks: approvalRemarks },
-            { preserveScroll: true },
-        );
-    }
-
-    async function rejectTransfer(transfer: Transfer) {
-        const approvalRemarks = await promptText({
-            title: 'Reject transfer?',
-            label: 'Reason for rejection',
-            placeholder: 'Enter the rejection reason',
-            required: true,
-            confirmButtonText: 'Reject',
-        });
-
-        if (!approvalRemarks) {
-            return;
-        }
-
-        router.post(
-            reject(transfer.id).url,
-            { approval_remarks: approvalRemarks },
-            { preserveScroll: true },
-        );
-    }
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Stock Transfers" />
+            <Head title="Inventory Adjustments" />
 
             <div className="flex flex-1 flex-col gap-4 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold">
-                            Stock Transfers
+                            Inventory Adjustments
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Move inventory through request, approval, and
-                            destination warehouse assignment.
+                            Record stock increases, decreases, damaged items,
+                            and lost item adjustments.
                         </p>
                     </div>
                     {canCreate && (
-                        <TransferDialog
-                            warehouses={warehouses}
-                            locations={locations}
+                        <AdjustmentDialog
                             items={items}
+                            types={types}
+                            reasons={reasons}
                         />
                     )}
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-5">
                     <SummaryCard
-                        title="Transfer Requests"
+                        title="Adjustments"
                         value={summary.total}
-                        icon={<Repeat className="size-4" />}
+                        icon={<SlidersHorizontal className="size-4" />}
                     />
                     <SummaryCard
-                        title="Pending Approval"
-                        value={summary.pending}
-                        icon={<Clock3 className="size-4" />}
+                        title="Increases"
+                        value={summary.increases}
+                        icon={<PlusCircle className="size-4" />}
                     />
                     <SummaryCard
-                        title="Approved"
-                        value={summary.approved}
-                        icon={<CheckCircle2 className="size-4" />}
+                        title="Decreases"
+                        value={summary.decreases}
+                        icon={<MinusCircle className="size-4" />}
                     />
                     <SummaryCard
-                        title="Rejected"
-                        value={summary.rejected}
-                        icon={<XCircle className="size-4" />}
+                        title="Damaged"
+                        value={summary.damaged}
+                        icon={<AlertTriangle className="size-4" />}
+                    />
+                    <SummaryCard
+                        title="Lost"
+                        value={summary.lost}
+                        icon={<ShieldAlert className="size-4" />}
                     />
                 </div>
 
                 <Card>
                     <CardHeader className="gap-2">
-                        <CardTitle>Find Transfers</CardTitle>
+                        <CardTitle>Find Adjustments</CardTitle>
                         <CardDescription>
-                            Search by transfer number, warehouse, or item.
+                            Search by adjustment number, item, or remarks.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form
                             onSubmit={submitFilters}
-                            className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_220px_auto]"
+                            className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_220px_260px_auto]"
                         >
                             <div className="grid gap-2">
-                                <Label htmlFor="transfer-search">Search</Label>
+                                <Label htmlFor="adjustment-search">
+                                    Search
+                                </Label>
                                 <Input
-                                    id="transfer-search"
+                                    id="adjustment-search"
                                     value={search}
                                     onChange={(event) =>
                                         setSearch(event.target.value)
                                     }
-                                    placeholder="Transfer number, item, warehouse"
+                                    placeholder="Adjustment number, item"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label>Status</Label>
+                                <Label>Type</Label>
                                 <Select
-                                    value={status}
-                                    onValueChange={setStatus}
+                                    value={adjustmentType}
+                                    onValueChange={setAdjustmentType}
                                 >
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">
-                                            All statuses
+                                            All types
                                         </SelectItem>
-                                        {statuses.map((status) => (
+                                        {types.map((type) => (
+                                            <SelectItem key={type} value={type}>
+                                                {typeLabel(type)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Reason</Label>
+                                <Select
+                                    value={reason}
+                                    onValueChange={setReason}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            All reasons
+                                        </SelectItem>
+                                        {reasons.map((reason) => (
                                             <SelectItem
-                                                key={status}
-                                                value={status}
+                                                key={reason}
+                                                value={reason}
                                             >
-                                                {titleCase(status)}
+                                                {reason}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -319,10 +303,10 @@ export default function StockTransfersIndex({
 
                 <Card>
                     <CardHeader className="gap-2">
-                        <CardTitle>Transfer History</CardTitle>
+                        <CardTitle>Adjustment History</CardTitle>
                         <CardDescription>
-                            Source Warehouse to Transfer Request to Approval to
-                            Destination Warehouse.
+                            Item quantity before and after each recorded
+                            adjustment.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -330,92 +314,62 @@ export default function StockTransfersIndex({
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Transfer</TableHead>
-                                        <TableHead>Route</TableHead>
-                                        <TableHead>Status</TableHead>
+                                        <TableHead>Adjustment</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Reason</TableHead>
                                         <TableHead className="text-right">
                                             Qty
                                         </TableHead>
                                         <TableHead>Items</TableHead>
-                                        {canApprove && (
-                                            <TableHead className="text-right">
-                                                Approval
-                                            </TableHead>
-                                        )}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {transfers.data.map((transfer) => (
-                                        <TableRow key={transfer.id}>
+                                    {adjustments.data.map((adjustment) => (
+                                        <TableRow key={adjustment.id}>
                                             <TableCell>
                                                 <div className="min-w-48 space-y-1">
                                                     <p className="font-medium">
                                                         {
-                                                            transfer.transfer_number
+                                                            adjustment.adjustment_number
                                                         }
                                                     </p>
                                                     <p className="text-sm text-muted-foreground">
-                                                        Requested{' '}
                                                         {
-                                                            transfer.requested_date
+                                                            adjustment.adjustment_date
                                                         }
                                                     </p>
                                                     <p className="text-xs text-muted-foreground">
                                                         By{' '}
-                                                        {transfer.requested_by ||
+                                                        {adjustment.adjusted_by ||
                                                             'Unknown'}
                                                     </p>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="min-w-64 space-y-1 text-sm">
-                                                    <p>
-                                                        {
-                                                            transfer
-                                                                .source_warehouse
-                                                                .label
-                                                        }
-                                                    </p>
-                                                    <p className="text-muted-foreground">
-                                                        to{' '}
-                                                        {
-                                                            transfer
-                                                                .destination_warehouse
-                                                                .label
-                                                        }
-                                                    </p>
-                                                    {transfer.destination_location && (
-                                                        <p className="text-xs text-muted-foreground">
-                                                            Location:{' '}
-                                                            {
-                                                                transfer
-                                                                    .destination_location
-                                                                    .label
-                                                            }
+                                                <TypeBadge
+                                                    type={
+                                                        adjustment.adjustment_type
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="min-w-44 text-sm">
+                                                    {adjustment.reason}
+                                                    {adjustment.remarks && (
+                                                        <p className="mt-1 text-xs text-muted-foreground">
+                                                            {adjustment.remarks}
                                                         </p>
                                                     )}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
-                                                <StatusBadge
-                                                    status={transfer.status}
-                                                />
-                                                {transfer.approved_by && (
-                                                    <p className="mt-1 text-xs text-muted-foreground">
-                                                        {transfer.approved_by}{' '}
-                                                        on{' '}
-                                                        {transfer.approved_date}
-                                                    </p>
-                                                )}
-                                            </TableCell>
                                             <TableCell className="text-right tabular-nums">
                                                 {
-                                                    transfer.total_quantity_transferred
+                                                    adjustment.total_quantity_adjusted
                                                 }
                                             </TableCell>
                                             <TableCell>
-                                                <div className="grid max-h-36 gap-2 overflow-y-auto pr-1">
-                                                    {transfer.lines.map(
+                                                <div className="grid max-h-40 gap-2 overflow-y-auto pr-1">
+                                                    {adjustment.lines.map(
                                                         (line) => (
                                                             <div
                                                                 key={line.id}
@@ -429,65 +383,37 @@ export default function StockTransfersIndex({
                                                                     </span>
                                                                     <Badge variant="secondary">
                                                                         {
-                                                                            line.quantity_transferred
+                                                                            line.quantity_adjusted
                                                                         }{' '}
                                                                         {
                                                                             line.unit_of_measure
                                                                         }
                                                                     </Badge>
                                                                 </div>
+                                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                                    Before:{' '}
+                                                                    {
+                                                                        line.quantity_before
+                                                                    }{' '}
+                                                                    to After:{' '}
+                                                                    {
+                                                                        line.quantity_after
+                                                                    }
+                                                                </p>
                                                             </div>
                                                         ),
                                                     )}
                                                 </div>
                                             </TableCell>
-                                            {canApprove && (
-                                                <TableCell className="text-right">
-                                                    {transfer.status ===
-                                                    'pending' ? (
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    approveTransfer(
-                                                                        transfer,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <CheckCircle2 className="size-4" />
-                                                                Approve
-                                                            </Button>
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    rejectTransfer(
-                                                                        transfer,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <XCircle className="size-4" />
-                                                                Reject
-                                                            </Button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-sm text-muted-foreground">
-                                                            Closed
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                            )}
                                         </TableRow>
                                     ))}
-                                    {transfers.data.length === 0 && (
+                                    {adjustments.data.length === 0 && (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={canApprove ? 6 : 5}
+                                                colSpan={5}
                                                 className="h-32 text-center text-muted-foreground"
                                             >
-                                                No transfer requests found.
+                                                No inventory adjustments found.
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -499,11 +425,11 @@ export default function StockTransfersIndex({
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
-                        Showing {transfers.from ?? 0} to {transfers.to ?? 0} of{' '}
-                        {transfers.total}
+                        Showing {adjustments.from ?? 0} to {adjustments.to ?? 0}{' '}
+                        of {adjustments.total}
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
-                        {transfers.links.map((link, index) =>
+                        {adjustments.links.map((link, index) =>
                             link.url ? (
                                 <Link
                                     key={`${link.label}-${index}`}
@@ -536,43 +462,31 @@ export default function StockTransfersIndex({
     );
 }
 
-function TransferDialog({
-    warehouses,
-    locations,
+function AdjustmentDialog({
     items,
+    types,
+    reasons,
 }: {
-    warehouses: Option[];
-    locations: LocationOption[];
     items: ItemOption[];
+    types: AdjustmentType[];
+    reasons: string[];
 }) {
     const [open, setOpen] = useState(false);
-    const form = useForm<TransferFormData>(transferDefaults());
-    const sourceWarehouseId = Number(form.data.source_warehouse_id || 0);
-    const destinationWarehouseId = Number(
-        form.data.destination_warehouse_id || 0,
-    );
-    const sourceItems = sourceWarehouseId
-        ? items.filter((item) => item.warehouse_id === sourceWarehouseId)
-        : items;
-    const destinationLocations = destinationWarehouseId
-        ? locations.filter(
-              (location) => location.warehouse_id === destinationWarehouseId,
-          )
-        : [];
+    const form = useForm<AdjustmentFormData>(adjustmentDefaults());
 
     function openDialog(nextOpen: boolean) {
         setOpen(nextOpen);
 
         if (nextOpen) {
             form.clearErrors();
-            form.setData(transferDefaults());
+            form.setData(adjustmentDefaults());
         }
     }
 
     function addLine() {
         form.setData('lines', [
             ...form.data.lines,
-            { item_id: '', quantity_transferred: '1' },
+            { item_id: '', quantity_adjusted: '1', remarks: '' },
         ]);
     }
 
@@ -589,7 +503,7 @@ function TransferDialog({
 
     function updateLine(
         index: number,
-        field: keyof TransferFormData['lines'][number],
+        field: keyof AdjustmentFormData['lines'][number],
         value: string,
     ) {
         form.setData(
@@ -617,31 +531,31 @@ function TransferDialog({
             <DialogTrigger asChild>
                 <Button>
                     <Plus className="size-4" />
-                    Request Transfer
+                    Record Adjustment
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-5xl">
                 <DialogHeader>
-                    <DialogTitle>Transfer Request</DialogTitle>
+                    <DialogTitle>Inventory Adjustment</DialogTitle>
                     <DialogDescription>
-                        Select a source warehouse, destination warehouse, and
-                        items for approval.
+                        Record stock quantity corrections, damage, expired
+                        items, theft, or loss.
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={submit} className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-4">
                         <Field
-                            id="transfer_number"
-                            label="Transfer Number"
-                            error={form.errors.transfer_number}
+                            id="adjustment_number"
+                            label="Adjustment Number"
+                            error={form.errors.adjustment_number}
                         >
                             <Input
-                                id="transfer_number"
-                                value={form.data.transfer_number}
+                                id="adjustment_number"
+                                value={form.data.adjustment_number}
                                 onChange={(event) =>
                                     form.setData(
-                                        'transfer_number',
+                                        'adjustment_number',
                                         event.target.value,
                                     )
                                 }
@@ -649,18 +563,18 @@ function TransferDialog({
                             />
                         </Field>
                         <Field
-                            id="requested_date"
-                            label="Requested Date"
-                            error={form.errors.requested_date}
+                            id="adjustment_date"
+                            label="Adjustment Date"
+                            error={form.errors.adjustment_date}
                             required
                         >
                             <Input
-                                id="requested_date"
+                                id="adjustment_date"
                                 type="date"
-                                value={form.data.requested_date}
+                                value={form.data.adjustment_date}
                                 onChange={(event) =>
                                     form.setData(
-                                        'requested_date',
+                                        'adjustment_date',
                                         event.target.value,
                                     )
                                 }
@@ -668,104 +582,48 @@ function TransferDialog({
                             />
                         </Field>
                         <Field
-                            id="destination_location_id"
-                            label="Destination Location"
-                            error={form.errors.destination_location_id}
+                            id="adjustment_type"
+                            label="Type"
+                            error={form.errors.adjustment_type}
+                            required
                         >
                             <Select
-                                value={
-                                    form.data.destination_location_id || 'none'
-                                }
+                                value={form.data.adjustment_type}
                                 onValueChange={(value) =>
-                                    form.setData(
-                                        'destination_location_id',
-                                        value === 'none' ? '' : value,
-                                    )
+                                    form.setData('adjustment_type', value)
                                 }
                             >
-                                <SelectTrigger id="destination_location_id">
-                                    <SelectValue placeholder="Optional" />
+                                <SelectTrigger id="adjustment_type">
+                                    <SelectValue placeholder="Select type" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">
-                                        No specific location
-                                    </SelectItem>
-                                    {destinationLocations.map((location) => (
-                                        <SelectItem
-                                            key={location.id}
-                                            value={String(location.id)}
-                                        >
-                                            {location.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </Field>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <Field
-                            id="source_warehouse_id"
-                            label="Source Warehouse"
-                            error={form.errors.source_warehouse_id}
-                            required
-                        >
-                            <Select
-                                value={form.data.source_warehouse_id}
-                                onValueChange={(value) => {
-                                    form.setData({
-                                        ...form.data,
-                                        source_warehouse_id: value,
-                                        lines: [
-                                            {
-                                                item_id: '',
-                                                quantity_transferred: '1',
-                                            },
-                                        ],
-                                    });
-                                }}
-                            >
-                                <SelectTrigger id="source_warehouse_id">
-                                    <SelectValue placeholder="Select source" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {warehouses.map((warehouse) => (
-                                        <SelectItem
-                                            key={warehouse.id}
-                                            value={String(warehouse.id)}
-                                        >
-                                            {warehouse.label}
+                                    {types.map((type) => (
+                                        <SelectItem key={type} value={type}>
+                                            {typeLabel(type)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </Field>
                         <Field
-                            id="destination_warehouse_id"
-                            label="Destination Warehouse"
-                            error={form.errors.destination_warehouse_id}
+                            id="reason"
+                            label="Reason"
+                            error={form.errors.reason}
                             required
                         >
                             <Select
-                                value={form.data.destination_warehouse_id}
-                                onValueChange={(value) => {
-                                    form.setData({
-                                        ...form.data,
-                                        destination_warehouse_id: value,
-                                        destination_location_id: '',
-                                    });
-                                }}
+                                value={form.data.reason}
+                                onValueChange={(value) =>
+                                    form.setData('reason', value)
+                                }
                             >
-                                <SelectTrigger id="destination_warehouse_id">
-                                    <SelectValue placeholder="Select destination" />
+                                <SelectTrigger id="reason">
+                                    <SelectValue placeholder="Select reason" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {warehouses.map((warehouse) => (
-                                        <SelectItem
-                                            key={warehouse.id}
-                                            value={String(warehouse.id)}
-                                        >
-                                            {warehouse.label}
+                                    {reasons.map((reason) => (
+                                        <SelectItem key={reason} value={reason}>
+                                            {reason}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -791,10 +649,10 @@ function TransferDialog({
                     <div className="space-y-3">
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <h3 className="font-medium">Transfer Items</h3>
+                                <h3 className="font-medium">Adjusted Items</h3>
                                 <p className="text-sm text-muted-foreground">
-                                    Items are filtered by the selected source
-                                    warehouse.
+                                    Decrease, damaged, and lost adjustments
+                                    cannot exceed available stock.
                                 </p>
                             </div>
                             <Button
@@ -818,7 +676,7 @@ function TransferDialog({
                                 return (
                                     <div
                                         key={index}
-                                        className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_180px_auto]"
+                                        className="grid gap-3 rounded-md border p-3 md:grid-cols-[1fr_170px_1fr_auto]"
                                     >
                                         <Field
                                             id={`lines-${index}-item`}
@@ -846,7 +704,7 @@ function TransferDialog({
                                                     <SelectValue placeholder="Select item" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {sourceItems.map((item) => (
+                                                    {items.map((item) => (
                                                         <SelectItem
                                                             key={item.id}
                                                             value={String(
@@ -860,7 +718,7 @@ function TransferDialog({
                                             </Select>
                                             {selectedItem && (
                                                 <p className="text-xs text-muted-foreground">
-                                                    Available:{' '}
+                                                    On hand:{' '}
                                                     {
                                                         selectedItem.quantity_on_hand
                                                     }{' '}
@@ -875,7 +733,7 @@ function TransferDialog({
                                             label="Quantity"
                                             error={
                                                 form.errors[
-                                                    `lines.${index}.quantity_transferred` as keyof typeof form.errors
+                                                    `lines.${index}.quantity_adjusted` as keyof typeof form.errors
                                                 ]
                                             }
                                             required
@@ -885,22 +743,36 @@ function TransferDialog({
                                                 type="number"
                                                 min="0.01"
                                                 step="0.01"
-                                                max={
-                                                    selectedItem
-                                                        ? selectedItem.quantity_on_hand
-                                                        : undefined
-                                                }
-                                                value={
-                                                    line.quantity_transferred
-                                                }
+                                                value={line.quantity_adjusted}
                                                 onChange={(event) =>
                                                     updateLine(
                                                         index,
-                                                        'quantity_transferred',
+                                                        'quantity_adjusted',
                                                         event.target.value,
                                                     )
                                                 }
                                                 required
+                                            />
+                                        </Field>
+                                        <Field
+                                            id={`lines-${index}-remarks`}
+                                            label="Line Remarks"
+                                            error={
+                                                form.errors[
+                                                    `lines.${index}.remarks` as keyof typeof form.errors
+                                                ]
+                                            }
+                                        >
+                                            <Input
+                                                id={`lines-${index}-remarks`}
+                                                value={line.remarks}
+                                                onChange={(event) =>
+                                                    updateLine(
+                                                        index,
+                                                        'remarks',
+                                                        event.target.value,
+                                                    )
+                                                }
                                             />
                                         </Field>
                                         <div className="flex items-end">
@@ -936,7 +808,7 @@ function TransferDialog({
                             Cancel
                         </Button>
                         <Button type="submit" disabled={form.processing}>
-                            Submit for Approval
+                            Record Adjustment
                         </Button>
                     </DialogFooter>
                 </form>
@@ -945,29 +817,28 @@ function TransferDialog({
     );
 }
 
-function transferDefaults(): TransferFormData {
+function adjustmentDefaults(): AdjustmentFormData {
     return {
-        transfer_number: '',
-        source_warehouse_id: '',
-        destination_warehouse_id: '',
-        destination_location_id: '',
-        requested_date: new Date().toISOString().slice(0, 10),
+        adjustment_number: '',
+        adjustment_type: 'increase',
+        reason: 'Physical Count Variance',
+        adjustment_date: new Date().toISOString().slice(0, 10),
         remarks: '',
-        lines: [{ item_id: '', quantity_transferred: '1' }],
+        lines: [{ item_id: '', quantity_adjusted: '1', remarks: '' }],
     };
 }
 
-function StatusBadge({ status }: { status: Transfer['status'] }) {
+function TypeBadge({ type }: { type: AdjustmentType }) {
     const className =
-        status === 'approved'
+        type === 'increase'
             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300'
-            : status === 'rejected'
-              ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300'
-              : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300';
+            : type === 'decrease'
+              ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300'
+              : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300';
 
     return (
         <Badge variant="outline" className={cn('capitalize', className)}>
-            {status}
+            {typeLabel(type)}
         </Badge>
     );
 }
@@ -1019,6 +890,9 @@ function Field({
     );
 }
 
-function titleCase(value: string): string {
-    return value.charAt(0).toUpperCase() + value.slice(1);
+function typeLabel(type: string): string {
+    return type
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }

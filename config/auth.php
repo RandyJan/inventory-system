@@ -129,4 +129,23 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Seeded Local Administrator
+    |--------------------------------------------------------------------------
+    |
+    | These values are used by the AdminAccountSeeder to create a local
+    | database-backed administrator account for testing non-LDAP login.
+    |
+    */
+
+    'seeded_admin' => [
+        'enabled' => env('SEEDED_ADMIN_ENABLED', true),
+        'name' => env('SEEDED_ADMIN_NAME', 'Local Administrator'),
+        'username' => env('SEEDED_ADMIN_USERNAME', 'local.admin'),
+        'email' => env('SEEDED_ADMIN_EMAIL', 'local.admin@example.test'),
+        'password' => env('SEEDED_ADMIN_PASSWORD', 'password'),
+        'role' => env('SEEDED_ADMIN_ROLE', 'Administrator'),
+    ],
+
 ];

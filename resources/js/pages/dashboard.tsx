@@ -8,10 +8,21 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
+import { index as inventoryAdjustmentsIndex } from '@/routes/inventory-adjustments';
 import { index as categoriesIndex } from '@/routes/inventory-categories';
 import { index as itemsIndex } from '@/routes/items';
+import { index as purchaseOrdersIndex } from '@/routes/purchase-orders';
+import { index as stockIssuancesIndex } from '@/routes/stock-issuances';
 import { index as suppliersIndex } from '@/routes/suppliers';
 import { index as warehousesIndex } from '@/routes/warehouses';
 import { type BreadcrumbItem } from '@/types';
@@ -19,13 +30,13 @@ import { Head, Link } from '@inertiajs/react';
 import {
     AlertTriangle,
     Boxes,
-    Building2,
     CircleCheck,
-    PackageCheck,
+    DollarSign,
     PackageSearch,
+    PackageX,
+    ShoppingCart,
     Tags,
-    Truck,
-    Warehouse,
+    TrendingDown,
 } from 'lucide-react';
 import { type ReactNode } from 'react';
 
@@ -44,6 +55,13 @@ type Analytics = {
         suppliers: number;
         active_suppliers: number;
         average_supplier_score: number;
+    };
+    stock_monitoring: {
+        current_inventory_value: number;
+        total_items: number;
+        low_stock_items: number;
+        out_of_stock_items: number;
+        pending_purchase_orders: number;
     };
     capacity: {
         warehouse_used: number;
@@ -65,6 +83,8 @@ type Analytics = {
     warehouse_utilization: WarehouseMetric[];
     supplier_performance: SupplierMetric[];
     recent_items: RecentItem[];
+    recent_transactions: RecentTransaction[];
+    top_consumed_items: TopConsumedItem[];
     alerts: AlertMetric[];
 };
 
@@ -100,6 +120,22 @@ type RecentItem = {
     created_at?: string | null;
 };
 
+type RecentTransaction = {
+    type: string;
+    reference: string;
+    quantity: number;
+    actor?: string | null;
+    date?: string | null;
+};
+
+type TopConsumedItem = {
+    name: string;
+    code: string;
+    quantity: number;
+    unit_of_measure: string;
+    transactions: number;
+};
+
 type AlertMetric = {
     label: string;
     value: string;
@@ -113,58 +149,206 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+});
+
 export default function Dashboard({ analytics }: { analytics: Analytics }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Dashboard" />
+            <Head title="Stock Monitoring Dashboard" />
 
             <div className="flex flex-1 flex-col gap-4 p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold">
-                            Inventory Analytics
+                            Stock Monitoring Dashboard
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Operational view of inventory readiness, storage
-                            capacity, supplier health, and recent item activity.
+                            Live inventory value, stock risk, pending orders,
+                            and movement activity.
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <QuickLink href={itemsIndex().url}>Items</QuickLink>
-                        <QuickLink href={warehousesIndex().url}>
-                            Warehouses
+                        <QuickLink href={purchaseOrdersIndex().url}>
+                            Purchase Orders
                         </QuickLink>
-                        <QuickLink href={suppliersIndex().url}>
-                            Suppliers
+                        <QuickLink href={inventoryAdjustmentsIndex().url}>
+                            Adjustments
                         </QuickLink>
                     </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                     <MetricCard
-                        title="Active Items"
-                        value={analytics.summary.active_items}
-                        description={`${analytics.summary.archived_items} archived`}
+                        title="Current Inventory Value"
+                        value={currencyFormatter.format(
+                            analytics.stock_monitoring.current_inventory_value,
+                        )}
+                        description="Quantity on hand times standard cost"
+                        icon={<DollarSign className="size-4" />}
+                    />
+                    <MetricCard
+                        title="Total Items"
+                        value={analytics.stock_monitoring.total_items}
+                        description={`${analytics.summary.active_items} active, ${analytics.summary.archived_items} archived`}
                         icon={<Boxes className="size-4" />}
                     />
                     <MetricCard
-                        title="Location Assignment"
-                        value={`${analytics.summary.assignment_rate}%`}
-                        description={`${analytics.summary.unassigned_items} active items unassigned`}
-                        icon={<PackageCheck className="size-4" />}
+                        title="Low Stock Items"
+                        value={analytics.stock_monitoring.low_stock_items}
+                        description="Above zero and at or below reorder level"
+                        icon={<TrendingDown className="size-4" />}
+                        tone={
+                            analytics.stock_monitoring.low_stock_items > 0
+                                ? 'warning'
+                                : 'good'
+                        }
                     />
                     <MetricCard
-                        title="Warehouses"
-                        value={analytics.summary.warehouses}
-                        description={`${analytics.summary.active_warehouses} active · ${analytics.summary.storage_locations} locations`}
-                        icon={<Warehouse className="size-4" />}
+                        title="Out of Stock Items"
+                        value={analytics.stock_monitoring.out_of_stock_items}
+                        description="Active items with no available quantity"
+                        icon={<PackageX className="size-4" />}
+                        tone={
+                            analytics.stock_monitoring.out_of_stock_items > 0
+                                ? 'critical'
+                                : 'good'
+                        }
                     />
                     <MetricCard
-                        title="Supplier Score"
-                        value={analytics.summary.average_supplier_score}
-                        description={`${analytics.summary.active_suppliers} active suppliers`}
-                        icon={<Truck className="size-4" />}
+                        title="Pending Purchase Orders"
+                        value={
+                            analytics.stock_monitoring.pending_purchase_orders
+                        }
+                        description="Awaiting approval"
+                        icon={<ShoppingCart className="size-4" />}
                     />
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                    <Card>
+                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <CardTitle>Recent Transactions</CardTitle>
+                                <CardDescription>
+                                    Latest receiving, issuance, transfer, and
+                                    adjustment activity.
+                                </CardDescription>
+                            </div>
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={stockIssuancesIndex().url}>
+                                    Issuances
+                                </Link>
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-hidden rounded-md border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Type</TableHead>
+                                            <TableHead>Reference</TableHead>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead className="text-right">
+                                                Quantity
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {analytics.recent_transactions.map(
+                                            (transaction) => (
+                                                <TableRow
+                                                    key={`${transaction.type}-${transaction.reference}`}
+                                                >
+                                                    <TableCell>
+                                                        <div className="space-y-1">
+                                                            <p className="font-medium">
+                                                                {
+                                                                    transaction.type
+                                                                }
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {transaction.actor ??
+                                                                    'System'}
+                                                            </p>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {transaction.reference}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {transaction.date ??
+                                                            'No date'}
+                                                    </TableCell>
+                                                    <TableCell className="text-right tabular-nums">
+                                                        {transaction.quantity}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ),
+                                        )}
+                                        {analytics.recent_transactions
+                                            .length === 0 && (
+                                            <TableRow>
+                                                <TableCell
+                                                    colSpan={4}
+                                                    className="h-28 text-center text-muted-foreground"
+                                                >
+                                                    No recent transactions yet.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <CardTitle>Top Consumed Items</CardTitle>
+                                <CardDescription>
+                                    Highest issued quantities from stock
+                                    issuance records.
+                                </CardDescription>
+                            </div>
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={stockIssuancesIndex().url}>
+                                    View Issues
+                                </Link>
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {analytics.top_consumed_items.map((item, index) => (
+                                <div
+                                    key={`${item.code}-${item.unit_of_measure}`}
+                                    className="rounded-md border p-3"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-medium">
+                                                {index + 1}. {item.name}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {item.code} -{' '}
+                                                {item.transactions} transactions
+                                            </p>
+                                        </div>
+                                        <Badge variant="secondary">
+                                            {item.quantity}{' '}
+                                            {item.unit_of_measure}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            ))}
+                            {analytics.top_consumed_items.length === 0 && (
+                                <EmptyState>No consumed items yet.</EmptyState>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
@@ -221,7 +405,9 @@ export default function Dashboard({ analytics }: { analytics: Analytics }) {
                             <HealthRow
                                 label="Costed"
                                 good={analytics.inventory_health.with_cost}
-                                attention={analytics.inventory_health.without_cost}
+                                attention={
+                                    analytics.inventory_health.without_cost
+                                }
                             />
                         </CardContent>
                     </Card>
@@ -249,7 +435,7 @@ export default function Dashboard({ analytics }: { analytics: Analytics }) {
                                     <RankedBar
                                         key={warehouse.code}
                                         label={warehouse.name}
-                                        detail={`${warehouse.code} · ${warehouse.locations_count} locations · ${warehouse.items_count} items`}
+                                        detail={`${warehouse.code} - ${warehouse.locations_count} locations - ${warehouse.items_count} items`}
                                         percent={warehouse.used_percent}
                                         inactive={!warehouse.active}
                                     />
@@ -294,134 +480,105 @@ export default function Dashboard({ analytics }: { analytics: Analytics }) {
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-3">
-                    <Card>
-                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <CardTitle>Top Categories</CardTitle>
-                                <CardDescription>
-                                    Item distribution by category.
-                                </CardDescription>
-                            </div>
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={categoriesIndex().url}>
-                                    Categories
-                                </Link>
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {analytics.category_mix.map((category) => (
-                                <div
-                                    key={category.name}
-                                    className="flex items-center justify-between gap-3 rounded-md border p-3"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Tags className="size-4 text-muted-foreground" />
-                                        <span className="text-sm font-medium">
-                                            {category.name}
-                                        </span>
-                                    </div>
-                                    <Badge variant="secondary">
-                                        {category.items_count}
-                                    </Badge>
-                                </div>
-                            ))}
-                            {analytics.category_mix.length === 0 && (
-                                <EmptyState>No categories yet.</EmptyState>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <CardTitle>Supplier Performance</CardTitle>
-                                <CardDescription>
-                                    Best suppliers by performance score.
-                                </CardDescription>
-                            </div>
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={suppliersIndex().url}>
-                                    Suppliers
-                                </Link>
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {analytics.supplier_performance.map((supplier) => (
-                                <div
-                                    key={supplier.code}
-                                    className="rounded-md border p-3"
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-medium">
-                                                {supplier.name}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {supplier.code} ·{' '}
-                                                {supplier.status}
-                                            </p>
-                                        </div>
-                                        <Badge>{supplier.score}</Badge>
-                                    </div>
-                                    <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
-                                        <div className="flex justify-between">
-                                            <span>Fulfillment</span>
-                                            <span>
-                                                {supplier.fulfillment_rate}%
-                                            </span>
-                                        </div>
-                                        <Progress
-                                            value={supplier.fulfillment_rate}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                            {analytics.supplier_performance.length === 0 && (
-                                <EmptyState>No suppliers yet.</EmptyState>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <CardTitle>Recent Items</CardTitle>
-                                <CardDescription>
-                                    Latest item records added to inventory.
-                                </CardDescription>
-                            </div>
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={itemsIndex().url}>Items</Link>
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {analytics.recent_items.map((item) => (
-                                <div
-                                    key={item.code}
-                                    className="flex items-start justify-between gap-3 rounded-md border p-3"
-                                >
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            {item.name}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {item.code} ·{' '}
-                                            {item.category ?? 'Uncategorized'}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {item.location}
-                                        </p>
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">
-                                        {item.created_at}
+                    <MiniList
+                        title="Top Categories"
+                        description="Item distribution by category."
+                        actionHref={categoriesIndex().url}
+                        actionLabel="Categories"
+                    >
+                        {analytics.category_mix.map((category) => (
+                            <div
+                                key={category.name}
+                                className="flex items-center justify-between gap-3 rounded-md border p-3"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Tags className="size-4 text-muted-foreground" />
+                                    <span className="text-sm font-medium">
+                                        {category.name}
                                     </span>
                                 </div>
-                            ))}
-                            {analytics.recent_items.length === 0 && (
-                                <EmptyState>No item activity yet.</EmptyState>
-                            )}
-                        </CardContent>
-                    </Card>
+                                <Badge variant="secondary">
+                                    {category.items_count}
+                                </Badge>
+                            </div>
+                        ))}
+                        {analytics.category_mix.length === 0 && (
+                            <EmptyState>No categories yet.</EmptyState>
+                        )}
+                    </MiniList>
+
+                    <MiniList
+                        title="Supplier Performance"
+                        description="Best suppliers by performance score."
+                        actionHref={suppliersIndex().url}
+                        actionLabel="Suppliers"
+                    >
+                        {analytics.supplier_performance.map((supplier) => (
+                            <div
+                                key={supplier.code}
+                                className="rounded-md border p-3"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-medium">
+                                            {supplier.name}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {supplier.code} - {supplier.status}
+                                        </p>
+                                    </div>
+                                    <Badge>{supplier.score}</Badge>
+                                </div>
+                                <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
+                                    <div className="flex justify-between">
+                                        <span>Fulfillment</span>
+                                        <span>
+                                            {supplier.fulfillment_rate}%
+                                        </span>
+                                    </div>
+                                    <Progress
+                                        value={supplier.fulfillment_rate}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                        {analytics.supplier_performance.length === 0 && (
+                            <EmptyState>No suppliers yet.</EmptyState>
+                        )}
+                    </MiniList>
+
+                    <MiniList
+                        title="Recent Items"
+                        description="Latest item records added to inventory."
+                        actionHref={itemsIndex().url}
+                        actionLabel="Items"
+                    >
+                        {analytics.recent_items.map((item) => (
+                            <div
+                                key={item.code}
+                                className="flex items-start justify-between gap-3 rounded-md border p-3"
+                            >
+                                <div>
+                                    <p className="text-sm font-medium">
+                                        {item.name}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {item.code} -{' '}
+                                        {item.category ?? 'Uncategorized'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {item.location}
+                                    </p>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                    {item.created_at}
+                                </span>
+                            </div>
+                        ))}
+                        {analytics.recent_items.length === 0 && (
+                            <EmptyState>No item activity yet.</EmptyState>
+                        )}
+                    </MiniList>
                 </div>
             </div>
         </AppLayout>
@@ -433,20 +590,34 @@ function MetricCard({
     value,
     description,
     icon,
+    tone = 'neutral',
 }: {
     title: string;
     value: number | string;
     description: string;
     icon: ReactNode;
+    tone?: 'neutral' | 'good' | 'warning' | 'critical';
 }) {
     return (
         <Card>
             <CardHeader className="space-y-0 pb-2">
                 <CardDescription className="flex items-center gap-2">
-                    {icon}
+                    <span
+                        className={
+                            tone === 'critical'
+                                ? 'text-destructive'
+                                : tone === 'warning'
+                                  ? 'text-amber-600'
+                                  : tone === 'good'
+                                    ? 'text-emerald-600'
+                                    : 'text-muted-foreground'
+                        }
+                    >
+                        {icon}
+                    </span>
                     {title}
                 </CardDescription>
-                <CardTitle className="text-3xl">{value}</CardTitle>
+                <CardTitle className="text-2xl">{value}</CardTitle>
             </CardHeader>
             <CardContent>
                 <p className="text-sm text-muted-foreground">{description}</p>
@@ -479,7 +650,7 @@ function CapacityBar({
             <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="font-medium">{label}</span>
                 <span className="text-muted-foreground">
-                    {used}/{total} · {percent}%
+                    {used}/{total} - {percent}%
                 </span>
             </div>
             <Progress value={percent} />
@@ -545,13 +716,36 @@ function RankedBar({
     );
 }
 
-function AlertBadge({
-    tone,
+function MiniList({
+    title,
+    description,
+    actionHref,
+    actionLabel,
     children,
 }: {
-    tone: string;
+    title: string;
+    description: string;
+    actionHref: string;
+    actionLabel: string;
     children: ReactNode;
 }) {
+    return (
+        <Card>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <CardTitle>{title}</CardTitle>
+                    <CardDescription>{description}</CardDescription>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                    <Link href={actionHref}>{actionLabel}</Link>
+                </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">{children}</CardContent>
+        </Card>
+    );
+}
+
+function AlertBadge({ tone, children }: { tone: string; children: ReactNode }) {
     if (tone === 'good') {
         return (
             <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">

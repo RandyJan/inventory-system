@@ -3,8 +3,14 @@
 namespace App\Services;
 
 use App\Models\InventoryCategory;
+use App\Models\InventoryAdjustment;
 use App\Models\Item;
+use App\Models\PurchaseOrder;
 use App\Models\Supplier;
+use App\Models\StockIssuance;
+use App\Models\StockIssuanceLine;
+use App\Models\StockReceiving;
+use App\Models\StockTransfer;
 use App\Models\Warehouse;
 use App\Models\WarehouseLocation;
 use Illuminate\Support\Collection;
@@ -43,6 +49,15 @@ class DashboardAnalyticsService
                 'active_suppliers' => Supplier::query()->where('status', Supplier::STATUS_ACTIVE)->count(),
                 'average_supplier_score' => round((float) Supplier::query()->avg('performance_score'), 2),
             ],
+            'stock_monitoring' => [
+                'current_inventory_value' => $this->currentInventoryValue(),
+                'total_items' => $totalItems,
+                'low_stock_items' => $this->lowStockItemsCount(),
+                'out_of_stock_items' => $this->outOfStockItemsCount(),
+                'pending_purchase_orders' => PurchaseOrder::query()
+                    ->where('status', PurchaseOrder::STATUS_PENDING)
+                    ->count(),
+            ],
             'capacity' => [
                 'warehouse_used' => $warehouseUsedCapacity,
                 'warehouse_total' => $warehouseCapacity,
@@ -63,8 +78,35 @@ class DashboardAnalyticsService
             'warehouse_utilization' => $this->warehouseUtilization(),
             'supplier_performance' => $this->supplierPerformance(),
             'recent_items' => $this->recentItems(),
+            'recent_transactions' => $this->recentTransactions(),
+            'top_consumed_items' => $this->topConsumedItems(),
             'alerts' => $this->alerts($unassignedItems, $warehouseCapacity, $warehouseUsedCapacity),
         ];
+    }
+
+    private function currentInventoryValue(): float
+    {
+        return round((float) Item::query()
+            ->active()
+            ->selectRaw('COALESCE(SUM(quantity_on_hand * standard_cost), 0) as value')
+            ->value('value'), 2);
+    }
+
+    private function lowStockItemsCount(): int
+    {
+        return Item::query()
+            ->active()
+            ->where('quantity_on_hand', '>', 0)
+            ->whereColumn('quantity_on_hand', '<=', 'reorder_level')
+            ->count();
+    }
+
+    private function outOfStockItemsCount(): int
+    {
+        return Item::query()
+            ->active()
+            ->where('quantity_on_hand', '<=', 0)
+            ->count();
     }
 
     /**
@@ -140,6 +182,97 @@ class DashboardAnalyticsService
                 'category' => $item->inventoryCategory?->name,
                 'location' => $item->warehouseLocation?->location_code ?? 'Unassigned',
                 'created_at' => $item->created_at?->diffForHumans(),
+            ]);
+    }
+
+    /**
+     * @return Collection<int, array{type: string, reference: string, quantity: float, actor: string|null, date: string|null, created_at: string}>
+     */
+    private function recentTransactions(): Collection
+    {
+        $receivings = StockReceiving::query()
+            ->with('receiver:id,name')
+            ->latest()
+            ->limit(5)
+            ->get(['id', 'receiving_number', 'delivery_date', 'received_by', 'total_quantity_received', 'created_at'])
+            ->map(fn (StockReceiving $receiving): array => [
+                'type' => 'Receiving',
+                'reference' => $receiving->receiving_number,
+                'quantity' => (float) $receiving->total_quantity_received,
+                'actor' => $receiving->receiver?->name,
+                'date' => $receiving->delivery_date?->format('Y-m-d'),
+                'created_at' => $receiving->created_at?->toISOString(),
+            ]);
+
+        $issuances = StockIssuance::query()
+            ->with('releaser:id,name')
+            ->latest()
+            ->limit(5)
+            ->get(['id', 'issue_number', 'date_issued', 'released_by', 'total_quantity_issued', 'created_at'])
+            ->map(fn (StockIssuance $issuance): array => [
+                'type' => 'Issuance',
+                'reference' => $issuance->issue_number,
+                'quantity' => (float) $issuance->total_quantity_issued,
+                'actor' => $issuance->releaser?->name,
+                'date' => $issuance->date_issued?->format('Y-m-d'),
+                'created_at' => $issuance->created_at?->toISOString(),
+            ]);
+
+        $adjustments = InventoryAdjustment::query()
+            ->with('adjuster:id,name')
+            ->latest()
+            ->limit(5)
+            ->get(['id', 'adjustment_number', 'adjustment_type', 'adjustment_date', 'adjusted_by', 'total_quantity_adjusted', 'created_at'])
+            ->map(fn (InventoryAdjustment $adjustment): array => [
+                'type' => 'Adjustment: '.str($adjustment->adjustment_type)->headline()->toString(),
+                'reference' => $adjustment->adjustment_number,
+                'quantity' => (float) $adjustment->total_quantity_adjusted,
+                'actor' => $adjustment->adjuster?->name,
+                'date' => $adjustment->adjustment_date?->format('Y-m-d'),
+                'created_at' => $adjustment->created_at?->toISOString(),
+            ]);
+
+        $transfers = StockTransfer::query()
+            ->with('requester:id,name')
+            ->latest()
+            ->limit(5)
+            ->get(['id', 'transfer_number', 'requested_date', 'requested_by', 'total_quantity_transferred', 'status', 'created_at'])
+            ->map(fn (StockTransfer $transfer): array => [
+                'type' => 'Transfer: '.str($transfer->status)->headline()->toString(),
+                'reference' => $transfer->transfer_number,
+                'quantity' => (float) $transfer->total_quantity_transferred,
+                'actor' => $transfer->requester?->name,
+                'date' => $transfer->requested_date?->format('Y-m-d'),
+                'created_at' => $transfer->created_at?->toISOString(),
+            ]);
+
+        return $receivings
+            ->concat($issuances)
+            ->concat($adjustments)
+            ->concat($transfers)
+            ->sortByDesc('created_at')
+            ->take(8)
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, array{name: string, code: string, quantity: float, unit_of_measure: string, transactions: int}>
+     */
+    private function topConsumedItems(): Collection
+    {
+        return StockIssuanceLine::query()
+            ->selectRaw('item_id, unit_of_measure, SUM(quantity_issued) as quantity, COUNT(*) as transactions')
+            ->with('item:id,item_code,name')
+            ->groupBy('item_id', 'unit_of_measure')
+            ->orderByDesc('quantity')
+            ->limit(6)
+            ->get()
+            ->map(fn (StockIssuanceLine $line): array => [
+                'name' => $line->item?->name ?? 'Unknown item',
+                'code' => $line->item?->item_code ?? 'N/A',
+                'quantity' => (float) $line->quantity,
+                'unit_of_measure' => $line->unit_of_measure,
+                'transactions' => (int) $line->transactions,
             ]);
     }
 

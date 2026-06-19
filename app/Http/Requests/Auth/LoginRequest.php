@@ -22,10 +22,12 @@ class LoginRequest extends FormRequest
      */
     public function rules(): array
     {
+        $captchaEnabled = (bool) config('captcha.enabled');
+
         return [
             config('fortify.username') => ['required', 'string'],
             'password' => ['required', 'string'],
-            'cf-turnstile-response' => ['required', 'string'],
+            'cf-turnstile-response' => [$captchaEnabled ? 'required' : 'nullable', 'string'],
         ];
     }
 
@@ -35,6 +37,10 @@ class LoginRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            if (! config('captcha.enabled')) {
+                return;
+            }
+
             $turnstileToken = $this->input('cf-turnstile-response');
 
             if ($turnstileToken) {

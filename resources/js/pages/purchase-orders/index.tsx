@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { promptText } from '@/lib/confirm';
 import { cn } from '@/lib/utils';
 import {
     approve,
@@ -190,12 +191,24 @@ export default function PurchaseOrdersIndex({
     }
 
     function submitDraft(purchaseOrder: PurchaseOrder) {
-        router.post(submitPurchaseOrder(purchaseOrder.id).url, {}, { preserveScroll: true });
+        router.post(
+            submitPurchaseOrder(purchaseOrder.id).url,
+            {},
+            { preserveScroll: true },
+        );
     }
 
-    function approveOrder(purchaseOrder: PurchaseOrder) {
-        const approvalRemarks =
-            window.prompt('Approval remarks (optional)') ?? '';
+    async function approveOrder(purchaseOrder: PurchaseOrder) {
+        const approvalRemarks = await promptText({
+            title: 'Approve purchase order?',
+            label: 'Approval remarks',
+            placeholder: 'Optional remarks',
+            confirmButtonText: 'Approve',
+        });
+
+        if (approvalRemarks === null) {
+            return;
+        }
 
         router.post(
             approve(purchaseOrder.id).url,
@@ -204,8 +217,14 @@ export default function PurchaseOrdersIndex({
         );
     }
 
-    function rejectOrder(purchaseOrder: PurchaseOrder) {
-        const approvalRemarks = window.prompt('Reason for rejection');
+    async function rejectOrder(purchaseOrder: PurchaseOrder) {
+        const approvalRemarks = await promptText({
+            title: 'Reject purchase order?',
+            label: 'Reason for rejection',
+            placeholder: 'Enter the rejection reason',
+            required: true,
+            confirmButtonText: 'Reject',
+        });
 
         if (!approvalRemarks) {
             return;
@@ -274,8 +293,7 @@ export default function PurchaseOrdersIndex({
                     <CardHeader className="gap-2">
                         <CardTitle>Find Purchase Orders</CardTitle>
                         <CardDescription>
-                            Search by PO number, supplier, requisition, or
-                            item.
+                            Search by PO number, supplier, requisition, or item.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -668,7 +686,8 @@ function PurchaseOrderDialog({
                           item_description:
                               value === 'custom'
                                   ? line.item_description
-                                  : selectedItem?.label || line.item_description,
+                                  : selectedItem?.label ||
+                                    line.item_description,
                           unit_of_measure:
                               value === 'custom'
                                   ? line.unit_of_measure

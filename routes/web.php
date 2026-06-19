@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryCategory\IndexController as InventoryCategoryIndexController;
 use App\Http\Controllers\InventoryCategory\StoreController as InventoryCategoryStoreController;
 use App\Http\Controllers\InventoryCategory\UpdateController as InventoryCategoryUpdateController;
+use App\Http\Controllers\InventoryAdjustmentController;
 use App\Http\Controllers\Item\CreateController as ItemCreateController;
 use App\Http\Controllers\Item\DestroyController as ItemDestroyController;
 use App\Http\Controllers\Item\EditController as ItemEditController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\RoleManagementController;
 use App\Http\Controllers\StockIssuanceController;
+use App\Http\Controllers\StockCountController;
 use App\Http\Controllers\StockReceivingController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierManagementController;
@@ -154,6 +156,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('stock-transfers/{stockTransfer}/reject', [StockTransferController::class, 'reject'])
         ->middleware('can:stock-transfers.approve')
         ->name('stock-transfers.reject');
+
+    Route::get('inventory-adjustments', [InventoryAdjustmentController::class, 'index'])
+        ->middleware('can:inventory-adjustments.view')
+        ->name('inventory-adjustments.index');
+    Route::post('inventory-adjustments', [InventoryAdjustmentController::class, 'store'])
+        ->middleware('can:inventory-adjustments.create')
+        ->name('inventory-adjustments.store');
+
+    Route::get('stock-counts', [StockCountController::class, 'index'])
+        ->middleware('can:stock-counts.view')
+        ->name('stock-counts.index');
+    Route::post('stock-counts', [StockCountController::class, 'store'])
+        ->middleware('can:stock-counts.create')
+        ->name('stock-counts.store');
 
     Route::get('warehouses', [WarehouseManagementController::class, 'index'])
         ->middleware('can:warehouses.view')

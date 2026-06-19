@@ -2,8 +2,10 @@
 
 use App\Models\User;
 use App\Services\RoleManagementService;
+use Database\Seeders\AdminAccountSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
 use function Pest\Laravel\actingAs;
@@ -11,7 +13,7 @@ use function Pest\Laravel\seed;
 
 uses(RefreshDatabase::class);
 
-test('database seeder creates administrator and guest demo accounts with permissions', function () {
+test('database seeder creates roles with expected permissions', function () {
     seed(DatabaseSeeder::class);
 
     /** @var User $administrator */
@@ -36,6 +38,34 @@ test('database seeder creates administrator and guest demo accounts with permiss
     )->and($guestRole->permissions->pluck('name')->all())->toBe([
         'dashboard.view',
     ]);
+});
+
+test('database seeder creates a local administrator account for non ldap login', function () {
+    seed(DatabaseSeeder::class);
+
+    /** @var User $administrator */
+    $administrator = User::query()
+        ->where('username', 'local.admin')
+        ->firstOrFail();
+
+    expect($administrator->name)->toBe('Local Administrator')
+        ->and($administrator->email)->toBe('local.admin@example.test')
+        ->and($administrator->is_active)->toBeTrue()
+        ->and(Hash::check('password', $administrator->getAuthPassword()))->toBeTrue()
+        ->and($administrator->hasRole('Administrator'))->toBeTrue()
+        ->and($administrator->can('users.view'))->toBeTrue();
+});
+
+test('admin account seeder can be run directly', function () {
+    seed(AdminAccountSeeder::class);
+
+    /** @var User $administrator */
+    $administrator = User::query()
+        ->where('username', 'local.admin')
+        ->firstOrFail();
+
+    expect($administrator->hasRole('Administrator'))->toBeTrue()
+        ->and($administrator->can('dashboard.view'))->toBeTrue();
 });
 
 test('seeded guest users can access the dashboard', function () {

@@ -12,12 +12,14 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as auditsIndex } from '@/routes/audits';
+import { index as inventoryAdjustmentsIndex } from '@/routes/inventory-adjustments';
 import { index as inventoryCategoriesIndex } from '@/routes/inventory-categories';
 import { index as itemsIndex } from '@/routes/items';
 import { index as permissionsIndex } from '@/routes/permissions';
 import { index as purchaseOrdersIndex } from '@/routes/purchase-orders';
 import { index as purchaseRequisitionsIndex } from '@/routes/purchase-requisitions';
 import { index as rolesIndex } from '@/routes/roles';
+import { index as stockCountsIndex } from '@/routes/stock-counts';
 import { index as stockIssuancesIndex } from '@/routes/stock-issuances';
 import { index as stockReceivingsIndex } from '@/routes/stock-receivings';
 import { index as stockTransfersIndex } from '@/routes/stock-transfers';
@@ -27,22 +29,22 @@ import { index as warehousesIndex } from '@/routes/warehouses';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BookOpen,
     BoxesIcon,
+    ClipboardCheck,
+    ClipboardList,
     FileText,
-    Folder,
     LayoutGrid,
     LockKeyhole,
-    ClipboardList,
-    ShoppingCart,
-    PackageMinus,
     PackageCheck,
+    PackageMinus,
     Repeat,
     ShieldCheck,
-    Truck,
+    ShoppingCart,
+    SlidersHorizontal,
     Tags,
-    Warehouse,
+    Truck,
     UsersRound,
+    Warehouse,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 
@@ -146,6 +148,24 @@ export function AppSidebar() {
                   },
               ]
             : []),
+        ...(can('inventory-adjustments.view')
+            ? [
+                  {
+                      title: 'Inventory Adjustments',
+                      href: inventoryAdjustmentsIndex(),
+                      icon: SlidersHorizontal,
+                  },
+              ]
+            : []),
+        ...(can('stock-counts.view')
+            ? [
+                  {
+                      title: 'Stock Counts',
+                      href: stockCountsIndex(),
+                      icon: ClipboardCheck,
+                  },
+              ]
+            : []),
         ...(can('warehouses.view')
             ? [
                   {
@@ -199,7 +219,11 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch className="style-none outline-none focus:outline-none focus:ring-0 active:outline-none">
+                            <Link
+                                href={dashboard()}
+                                prefetch
+                                className="style-none outline-none focus:ring-0 focus:outline-none active:outline-none"
+                            >
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

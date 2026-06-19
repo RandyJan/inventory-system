@@ -21,6 +21,10 @@ class TurnstileService
      */
     public function validate(string $token, ?string $remoteIp = null): bool
     {
+        if (! config('captcha.enabled')) {
+            return true;
+        }
+
         if (empty($this->secretKey)) {
             Log::error('Turnstile secret key is not configured');
 

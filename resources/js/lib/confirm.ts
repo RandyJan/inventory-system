@@ -16,3 +16,43 @@ export async function confirmArchiveItem(itemName: string): Promise<boolean> {
 
     return result.isConfirmed;
 }
+
+export async function promptText({
+    title,
+    label,
+    placeholder,
+    required = false,
+    confirmButtonText = 'Continue',
+}: {
+    title: string;
+    label?: string;
+    placeholder?: string;
+    required?: boolean;
+    confirmButtonText?: string;
+}): Promise<string | null> {
+    const result = await Swal.fire<string>({
+        title,
+        input: 'textarea',
+        inputLabel: label,
+        inputPlaceholder: placeholder,
+        inputAttributes: {
+            rows: '4',
+        },
+        showCancelButton: true,
+        confirmButtonText,
+        cancelButtonText: 'Cancel',
+        reverseButtons: true,
+        focusCancel: !required,
+        inputValidator: (value) => {
+            if (required && !value?.trim()) {
+                return 'This field is required.';
+            }
+        },
+    });
+
+    if (!result.isConfirmed) {
+        return null;
+    }
+
+    return result.value?.trim() ?? '';
+}
