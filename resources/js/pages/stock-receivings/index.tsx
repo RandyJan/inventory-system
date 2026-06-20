@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { InventoryScanner } from '@/components/inventory-code-tools';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,7 +38,10 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import { index as stockReceivingsIndex, store } from '@/routes/stock-receivings';
+import {
+    index as stockReceivingsIndex,
+    store,
+} from '@/routes/stock-receivings';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
@@ -93,6 +97,8 @@ type Option = {
 };
 
 type ItemOption = Option & {
+    item_code?: string | null;
+    barcode?: string | null;
     unit_of_measure: string;
     quantity_on_hand: number;
 };
@@ -169,8 +175,8 @@ export default function StockReceivingsIndex({
                             Stock Receiving
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Receive purchased items, verify received
-                            quantities, and update inventory stock.
+                            Receive purchased items, verify received quantities,
+                            and update inventory stock.
                         </p>
                     </div>
                     {canCreate && (
@@ -215,9 +221,7 @@ export default function StockReceivingsIndex({
                             className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_280px_auto]"
                         >
                             <div className="grid gap-2">
-                                <Label htmlFor="receiving-search">
-                                    Search
-                                </Label>
+                                <Label htmlFor="receiving-search">Search</Label>
                                 <Input
                                     id="receiving-search"
                                     value={search}
@@ -370,8 +374,8 @@ export default function StockReceivingsIndex({
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
-                        Showing {receivings.from ?? 0} to{' '}
-                        {receivings.to ?? 0} of {receivings.total}
+                        Showing {receivings.from ?? 0} to {receivings.to ?? 0}{' '}
+                        of {receivings.total}
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                         {receivings.links.map((link, index) =>
@@ -455,6 +459,52 @@ function ReceivingDialog({
                 lineIndex === index ? { ...line, [field]: value } : line,
             ),
         );
+    }
+
+    function handleScannedItem(item: ItemOption) {
+        const itemId = String(item.id);
+        const existingLineIndex = form.data.lines.findIndex(
+            (line) => line.item_id === itemId,
+        );
+        const emptyLineIndex = form.data.lines.findIndex(
+            (line) => !line.item_id,
+        );
+
+        if (existingLineIndex >= 0) {
+            form.setData(
+                'lines',
+                form.data.lines.map((line, lineIndex) =>
+                    lineIndex === existingLineIndex
+                        ? {
+                              ...line,
+                              quantity_received: String(
+                                  Number(line.quantity_received || 0) + 1,
+                              ),
+                          }
+                        : line,
+                ),
+            );
+
+            return;
+        }
+
+        if (emptyLineIndex >= 0) {
+            form.setData(
+                'lines',
+                form.data.lines.map((line, lineIndex) =>
+                    lineIndex === emptyLineIndex
+                        ? { ...line, item_id: itemId, quantity_received: '1' }
+                        : line,
+                ),
+            );
+
+            return;
+        }
+
+        form.setData('lines', [
+            ...form.data.lines,
+            { item_id: itemId, quantity_received: '1', remarks: '' },
+        ]);
     }
 
     function submit(event: FormEvent<HTMLFormElement>) {
@@ -608,6 +658,12 @@ function ReceivingDialog({
                                 Add Item
                             </Button>
                         </div>
+
+                        <InventoryScanner
+                            items={items}
+                            contextLabel="receiving"
+                            onScan={handleScannedItem}
+                        />
 
                         <div className="space-y-3">
                             {form.data.lines.map((line, index) => {

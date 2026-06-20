@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\ApprovalWorkflowController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryCategory\IndexController as InventoryCategoryIndexController;
 use App\Http\Controllers\InventoryCategory\StoreController as InventoryCategoryStoreController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PermissionManagementController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseRequisitionController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleManagementController;
 use App\Http\Controllers\StockIssuanceController;
 use App\Http\Controllers\StockCountController;
@@ -40,6 +42,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)
         ->middleware('can:dashboard.view')
         ->name('dashboard');
+
+    Route::get('reports', ReportController::class)
+        ->middleware('can:reports.view')
+        ->name('reports.index');
+    Route::get('reports/{report}', [ReportController::class, 'show'])
+        ->middleware('can:reports.view')
+        ->name('reports.show');
+    Route::get('reports/{report}/export', [ReportController::class, 'export'])
+        ->middleware('can:reports.view')
+        ->name('reports.export');
 
     // Debug pages
     Route::get('debug/notifications', function () {
@@ -84,6 +96,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('permissions/{permission}', [PermissionManagementController::class, 'destroy'])
         ->middleware('can:permissions.delete')
         ->name('permissions.destroy');
+
+    Route::get('approval-workflows', [ApprovalWorkflowController::class, 'index'])
+        ->middleware('can:approval-workflows.view')
+        ->name('approval-workflows.index');
+    Route::post('approval-workflows', [ApprovalWorkflowController::class, 'store'])
+        ->middleware('can:approval-workflows.manage')
+        ->name('approval-workflows.store');
+    Route::put('approval-workflows/{approvalWorkflow}', [ApprovalWorkflowController::class, 'update'])
+        ->middleware('can:approval-workflows.manage')
+        ->name('approval-workflows.update');
 
     Route::get('suppliers', [SupplierManagementController::class, 'index'])
         ->middleware('can:suppliers.view')
@@ -151,10 +173,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:stock-transfers.create')
         ->name('stock-transfers.store');
     Route::post('stock-transfers/{stockTransfer}/approve', [StockTransferController::class, 'approve'])
-        ->middleware('can:stock-transfers.approve')
         ->name('stock-transfers.approve');
     Route::post('stock-transfers/{stockTransfer}/reject', [StockTransferController::class, 'reject'])
-        ->middleware('can:stock-transfers.approve')
         ->name('stock-transfers.reject');
 
     Route::get('inventory-adjustments', [InventoryAdjustmentController::class, 'index'])

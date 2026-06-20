@@ -55,3 +55,32 @@ test('audit index can filter by role management events', function () {
             ->has('activities.data', 1)
             ->where('activities.data.0.log_name', 'role-management'));
 });
+
+test('audit index can filter by inventory tracking events', function () {
+    $actor = User::factory()->create();
+    $actor->givePermissionTo('audits.view');
+
+    activity('inventory-tracking')
+        ->causedBy($actor)
+        ->withProperties([
+            'old_values' => ['items.1.quantity_on_hand' => 5],
+            'new_values' => ['items.1.quantity_on_hand' => 17],
+        ])
+        ->event('stock-received')
+        ->log('Recorded stock receiving');
+
+    activity('authentication')
+        ->causedBy($actor)
+        ->event('login')
+        ->log('User logged in');
+
+    $this->actingAs($actor)
+        ->get(route('audits.index', ['type' => 'inventory-tracking']))
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('audit/index')
+            ->where('filters.type', 'inventory-tracking')
+            ->has('activities.data', 1)
+            ->where('activities.data.0.log_name', 'inventory-tracking')
+            ->where('activities.data.0.event', 'stock-received'));
+});

@@ -79,6 +79,19 @@ class StockTransferController extends Controller
             'total_quantity_transferred' => (float) $transfer->total_quantity_transferred,
             'remarks' => $transfer->remarks,
             'approval_remarks' => $transfer->approval_remarks,
+            'current_approval_step' => $transfer->approvalSteps
+                ->firstWhere('status', 'pending')?->name,
+            'approval_steps' => $transfer->approvalSteps->map(fn ($step): array => [
+                'id' => $step->id,
+                'level' => $step->level,
+                'name' => $step->name,
+                'role_name' => $step->role_name,
+                'permission_name' => $step->permission_name,
+                'status' => $step->status,
+                'acted_by' => $step->actor?->name,
+                'acted_at' => $step->acted_at?->format('Y-m-d H:i'),
+                'remarks' => $step->remarks,
+            ])->values(),
             'lines' => $transfer->lines->map(fn ($line): array => [
                 'id' => $line->id,
                 'item' => "{$line->item->item_code} - {$line->item->name}",

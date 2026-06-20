@@ -30,6 +30,12 @@ test('authorized users can view stock issuance module', function (): void {
     $actor = stockIssuanceActor('stock-issuances.view');
     $issuance = StockIssuance::factory()->create();
     StockIssuanceLine::factory()->for($issuance)->create();
+    Item::factory()->create([
+        'item_code' => 'AAA-ISS-SCAN',
+        'barcode' => 'ISS-BARCODE-001',
+        'name' => 'AAA Issuance Scanner Item',
+        'quantity_on_hand' => 5,
+    ]);
 
     $this->actingAs($actor)
         ->get(route('stock-issuances.index'))
@@ -39,7 +45,9 @@ test('authorized users can view stock issuance module', function (): void {
             ->has('issuances.data', 1)
             ->has('summary')
             ->has('departments')
-            ->has('items'));
+            ->has('items')
+            ->where('items.0.item_code', 'AAA-ISS-SCAN')
+            ->where('items.0.barcode', 'ISS-BARCODE-001'));
 });
 
 test('authorized users can record issuance and deduct item quantity', function (): void {

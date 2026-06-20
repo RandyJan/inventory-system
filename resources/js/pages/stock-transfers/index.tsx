@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { InventoryScanner } from '@/components/inventory-code-tools';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -73,6 +74,8 @@ type LocationOption = Option & {
 };
 
 type ItemOption = Option & {
+    item_code?: string | null;
+    barcode?: string | null;
     warehouse_id: number | null;
     unit_of_measure: string;
     quantity_on_hand: number;
@@ -83,6 +86,18 @@ type TransferLine = {
     item: string;
     quantity_transferred: number;
     unit_of_measure: string;
+};
+
+type ApprovalStep = {
+    id: number;
+    level: number;
+    name: string;
+    role_name?: string | null;
+    permission_name: string;
+    status: 'pending' | 'approved' | 'rejected';
+    acted_by?: string | null;
+    acted_at?: string | null;
+    remarks?: string | null;
 };
 
 type Transfer = {
@@ -99,6 +114,8 @@ type Transfer = {
     total_quantity_transferred: number;
     remarks?: string | null;
     approval_remarks?: string | null;
+    current_approval_step?: string | null;
+    approval_steps: ApprovalStep[];
     lines: TransferLine[];
 };
 
@@ -155,7 +172,13 @@ export default function StockTransfersIndex({
     const { auth } = usePage<SharedData>().props;
     const permissions = new Set(auth.permissions ?? []);
     const canCreate = permissions.has('stock-transfers.create');
-    const canApprove = permissions.has('stock-transfers.approve');
+    const canApprove = [
+        'stock-transfers.approve',
+        'stock-transfers.approve.supervisor',
+        'stock-transfers.approve.department-head',
+        'stock-transfers.approve.inventory-manager',
+        'approval-workflows.manage',
+    ].some((permission) => permissions.has(permission));
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status || 'all');
 
@@ -407,6 +430,22 @@ export default function StockTransfersIndex({
                                                         {transfer.approved_date}
                                                     </p>
                                                 )}
+                                                {transfer.current_approval_step && (
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        Current:{' '}
+                                                        {
+                                                            transfer.current_approval_step
+                                                        }
+                                                    </p>
+                                                )}
+                                                {transfer.approval_steps
+                                                    .length > 0 && (
+                                                    <ApprovalStepTrail
+                                                        steps={
+                                                            transfer.approval_steps
+                                                        }
+                                                    />
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right tabular-nums">
                                                 {
@@ -444,7 +483,11 @@ export default function StockTransfersIndex({
                                             {canApprove && (
                                                 <TableCell className="text-right">
                                                     {transfer.status ===
-                                                    'pending' ? (
+                                                        'pending' &&
+                                                    canApproveTransfer(
+                                                        transfer,
+                                                        permissions,
+                                                    ) ? (
                                                         <div className="flex justify-end gap-2">
                                                             <Button
                                                                 type="button"
@@ -474,7 +517,10 @@ export default function StockTransfersIndex({
                                                         </div>
                                                     ) : (
                                                         <span className="text-sm text-muted-foreground">
-                                                            Closed
+                                                            {transfer.status ===
+                                                            'pending'
+                                                                ? 'Waiting'
+                                                                : 'Closed'}
                                                         </span>
                                                     )}
                                                 </TableCell>
@@ -598,6 +644,56 @@ function TransferDialog({
                 lineIndex === index ? { ...line, [field]: value } : line,
             ),
         );
+    }
+
+    function handleScannedItem(item: ItemOption) {
+        const itemId = String(item.id);
+        const existingLineIndex = form.data.lines.findIndex(
+            (line) => line.item_id === itemId,
+        );
+        const emptyLineIndex = form.data.lines.findIndex(
+            (line) => !line.item_id,
+        );
+
+        if (existingLineIndex >= 0) {
+            form.setData(
+                'lines',
+                form.data.lines.map((line, lineIndex) =>
+                    lineIndex === existingLineIndex
+                        ? {
+                              ...line,
+                              quantity_transferred: String(
+                                  Number(line.quantity_transferred || 0) + 1,
+                              ),
+                          }
+                        : line,
+                ),
+            );
+
+            return;
+        }
+
+        if (emptyLineIndex >= 0) {
+            form.setData(
+                'lines',
+                form.data.lines.map((line, lineIndex) =>
+                    lineIndex === emptyLineIndex
+                        ? {
+                              ...line,
+                              item_id: itemId,
+                              quantity_transferred: '1',
+                          }
+                        : line,
+                ),
+            );
+
+            return;
+        }
+
+        form.setData('lines', [
+            ...form.data.lines,
+            { item_id: itemId, quantity_transferred: '1' },
+        ]);
     }
 
     function submit(event: FormEvent<HTMLFormElement>) {
@@ -809,6 +905,12 @@ function TransferDialog({
 
                         <InputError message={form.errors.lines} />
 
+                        <InventoryScanner
+                            items={sourceItems}
+                            contextLabel="transfer"
+                            onScan={handleScannedItem}
+                        />
+
                         <div className="space-y-3">
                             {form.data.lines.map((line, index) => {
                                 const selectedItem = items.find(
@@ -970,6 +1072,55 @@ function StatusBadge({ status }: { status: Transfer['status'] }) {
             {status}
         </Badge>
     );
+}
+
+function ApprovalStepTrail({ steps }: { steps: ApprovalStep[] }) {
+    return (
+        <div className="mt-2 flex max-w-sm flex-wrap gap-1">
+            {steps.map((step) => (
+                <Badge
+                    key={step.id}
+                    variant={
+                        step.status === 'approved'
+                            ? 'default'
+                            : step.status === 'rejected'
+                              ? 'destructive'
+                              : 'secondary'
+                    }
+                    className="text-[11px]"
+                    title={[
+                        step.role_name,
+                        step.acted_by ? `By ${step.acted_by}` : null,
+                        step.acted_at,
+                    ]
+                        .filter(Boolean)
+                        .join(' | ')}
+                >
+                    {step.level}. {step.name}
+                </Badge>
+            ))}
+        </div>
+    );
+}
+
+function canApproveTransfer(
+    transfer: Transfer,
+    permissions: Set<string>,
+): boolean {
+    if (
+        permissions.has('stock-transfers.approve') ||
+        permissions.has('approval-workflows.manage')
+    ) {
+        return true;
+    }
+
+    const currentStep = transfer.approval_steps.find(
+        (step) => step.status === 'pending',
+    );
+
+    return currentStep
+        ? permissions.has(currentStep.permission_name)
+        : permissions.has('stock-transfers.approve.inventory-manager');
 }
 
 function SummaryCard({

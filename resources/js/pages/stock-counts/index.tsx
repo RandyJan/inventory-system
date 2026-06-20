@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { InventoryScanner } from '@/components/inventory-code-tools';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -94,6 +95,8 @@ type PaginatedCounts = {
 type ItemOption = {
     id: number;
     label: string;
+    item_code?: string | null;
+    barcode?: string | null;
     unit_of_measure: string;
     quantity_on_hand: number;
 };
@@ -485,6 +488,52 @@ function StockCountDialog({
         );
     }
 
+    function handleScannedItem(item: ItemOption) {
+        const itemId = String(item.id);
+        const existingLineIndex = form.data.lines.findIndex(
+            (line) => line.item_id === itemId,
+        );
+        const emptyLineIndex = form.data.lines.findIndex(
+            (line) => !line.item_id,
+        );
+
+        if (existingLineIndex >= 0) {
+            form.setData(
+                'lines',
+                form.data.lines.map((line, lineIndex) =>
+                    lineIndex === existingLineIndex
+                        ? {
+                              ...line,
+                              actual_quantity: String(
+                                  Number(line.actual_quantity || 0) + 1,
+                              ),
+                          }
+                        : line,
+                ),
+            );
+
+            return;
+        }
+
+        if (emptyLineIndex >= 0) {
+            form.setData(
+                'lines',
+                form.data.lines.map((line, lineIndex) =>
+                    lineIndex === emptyLineIndex
+                        ? { ...line, item_id: itemId, actual_quantity: '1' }
+                        : line,
+                ),
+            );
+
+            return;
+        }
+
+        form.setData('lines', [
+            ...form.data.lines,
+            { item_id: itemId, actual_quantity: '1', remarks: '' },
+        ]);
+    }
+
     function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
@@ -613,6 +662,12 @@ function StockCountDialog({
                         </div>
 
                         <InputError message={form.errors.lines} />
+
+                        <InventoryScanner
+                            items={items}
+                            contextLabel="counting"
+                            onScan={handleScannedItem}
+                        />
 
                         <div className="space-y-3">
                             {form.data.lines.map((line, index) => {

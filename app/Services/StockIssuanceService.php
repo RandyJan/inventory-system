@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class StockIssuanceService
 {
+    public function __construct(public InventoryAuditService $auditService) {}
+
     /**
      * @param  array{search?: string|null, department?: string|null}  $filters
      * @return LengthAwarePaginator<int, StockIssuance>
@@ -68,7 +70,7 @@ class StockIssuanceService
     }
 
     /**
-     * @return Collection<int, array{id: int, label: string, unit_of_measure: string, quantity_on_hand: float}>
+     * @return Collection<int, array{id: int, item_code: string, barcode: string|null, label: string, unit_of_measure: string, quantity_on_hand: float}>
      */
     public function items(): Collection
     {
@@ -76,9 +78,11 @@ class StockIssuanceService
             ->active()
             ->where('quantity_on_hand', '>', 0)
             ->orderBy('name')
-            ->get(['id', 'item_code', 'name', 'unit_of_measure', 'quantity_on_hand'])
+            ->get(['id', 'item_code', 'barcode', 'name', 'unit_of_measure', 'quantity_on_hand'])
             ->map(fn (Item $item): array => [
                 'id' => $item->id,
+                'item_code' => $item->item_code,
+                'barcode' => $item->barcode,
                 'label' => "{$item->item_code} - {$item->name}",
                 'unit_of_measure' => $item->unit_of_measure,
                 'quantity_on_hand' => (float) $item->quantity_on_hand,
@@ -124,9 +128,14 @@ class StockIssuanceService
                 'total_quantity_issued' => $lines->sum('quantity_issued'),
             ]);
 
-            $lines->each(function (array $line) use ($items, $issuance): void {
+            $oldValues = [];
+            $newValues = [];
+
+            $lines->each(function (array $line) use ($items, $issuance, &$oldValues, &$newValues): void {
                 /** @var Item $item */
                 $item = $items->get($line['item_id']);
+                $quantityBefore = (float) $item->quantity_on_hand;
+                $quantityAfter = $quantityBefore - $line['quantity_issued'];
 
                 $issuance->lines()->create([
                     'item_id' => $item->id,
@@ -134,8 +143,31 @@ class StockIssuanceService
                     'unit_of_measure' => $item->unit_of_measure,
                 ]);
 
-                $item->decrement('quantity_on_hand', $line['quantity_issued']);
+                $item->forceFill([
+                    'quantity_on_hand' => $quantityAfter,
+                ])->save();
+
+                $oldValues["items.{$item->id}.quantity_on_hand"] = $quantityBefore;
+                $newValues["items.{$item->id}.quantity_on_hand"] = $quantityAfter;
+                $newValues["items.{$item->id}.item"] = "{$item->item_code} - {$item->name}";
+                $newValues["items.{$item->id}.quantity_issued"] = $line['quantity_issued'];
+                $newValues["items.{$item->id}.unit_of_measure"] = $item->unit_of_measure;
             });
+
+            $this->auditService->record(
+                $issuance,
+                $releaser,
+                'stock-issued',
+                'Recorded stock issuance',
+                $oldValues,
+                $newValues,
+                [
+                    'issue_number' => $issuance->issue_number,
+                    'requesting_department' => $issuance->requesting_department,
+                    'requestor' => $issuance->requestor,
+                    'total_quantity_issued' => (float) $issuance->total_quantity_issued,
+                ]
+            );
 
             return $issuance->load(['releaser', 'lines.item']);
         });

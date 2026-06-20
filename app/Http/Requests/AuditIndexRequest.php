@@ -27,6 +27,8 @@ class AuditIndexRequest extends FormRequest
                     'authentication',
                     'user-management',
                     'role-management',
+                    'permission-management',
+                    'inventory-tracking',
                 ]),
             ],
         ];

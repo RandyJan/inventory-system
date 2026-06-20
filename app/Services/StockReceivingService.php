@@ -15,6 +15,8 @@ use Illuminate\Support\Str;
 
 class StockReceivingService
 {
+    public function __construct(public InventoryAuditService $auditService) {}
+
     /**
      * @param  array{search?: string|null, supplier_id?: int|string|null}  $filters
      * @return LengthAwarePaginator<int, StockReceiving>
@@ -70,16 +72,18 @@ class StockReceivingService
     }
 
     /**
-     * @return Collection<int, array{id: int, label: string, unit_of_measure: string, quantity_on_hand: float}>
+     * @return Collection<int, array{id: int, item_code: string, barcode: string|null, label: string, unit_of_measure: string, quantity_on_hand: float}>
      */
     public function items(): Collection
     {
         return Item::query()
             ->active()
             ->orderBy('name')
-            ->get(['id', 'item_code', 'name', 'unit_of_measure', 'quantity_on_hand'])
+            ->get(['id', 'item_code', 'barcode', 'name', 'unit_of_measure', 'quantity_on_hand'])
             ->map(fn (Item $item): array => [
                 'id' => $item->id,
+                'item_code' => $item->item_code,
+                'barcode' => $item->barcode,
                 'label' => "{$item->item_code} - {$item->name}",
                 'unit_of_measure' => $item->unit_of_measure,
                 'quantity_on_hand' => (float) $item->quantity_on_hand,
@@ -116,9 +120,14 @@ class StockReceivingService
                 'remarks' => $data['remarks'] ?? null,
             ]);
 
-            $lines->each(function (array $line) use ($items, $receiving): void {
+            $oldValues = [];
+            $newValues = [];
+
+            $lines->each(function (array $line) use ($items, $receiving, &$oldValues, &$newValues): void {
                 /** @var Item $item */
                 $item = $items->get($line['item_id']);
+                $quantityBefore = (float) $item->quantity_on_hand;
+                $quantityAfter = $quantityBefore + $line['quantity_received'];
 
                 $receiving->lines()->create([
                     'item_id' => $item->id,
@@ -127,7 +136,15 @@ class StockReceivingService
                     'remarks' => $line['remarks'],
                 ]);
 
-                $item->increment('quantity_on_hand', $line['quantity_received']);
+                $item->forceFill([
+                    'quantity_on_hand' => $quantityAfter,
+                ])->save();
+
+                $oldValues["items.{$item->id}.quantity_on_hand"] = $quantityBefore;
+                $newValues["items.{$item->id}.quantity_on_hand"] = $quantityAfter;
+                $newValues["items.{$item->id}.item"] = "{$item->item_code} - {$item->name}";
+                $newValues["items.{$item->id}.quantity_received"] = $line['quantity_received'];
+                $newValues["items.{$item->id}.unit_of_measure"] = $item->unit_of_measure;
             });
 
             Supplier::query()
@@ -137,6 +154,20 @@ class StockReceivingService
                     'fulfilled_orders' => DB::raw('fulfilled_orders + 1'),
                     'last_delivery_at' => $data['delivery_date'],
                 ]);
+
+            $this->auditService->record(
+                $receiving,
+                $receiver,
+                'stock-received',
+                'Recorded stock receiving',
+                $oldValues,
+                $newValues,
+                [
+                    'receiving_number' => $receiving->receiving_number,
+                    'supplier_id' => $receiving->supplier_id,
+                    'total_quantity_received' => (float) $receiving->total_quantity_received,
+                ]
+            );
 
             return $receiving->load(['supplier', 'receiver', 'lines.item']);
         });

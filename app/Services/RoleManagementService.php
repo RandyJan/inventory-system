@@ -15,6 +15,7 @@ class RoleManagementService
     /** @var list<string> */
     public const DEFAULT_PERMISSIONS = [
         'dashboard.view',
+        'reports.view',
         'items.view',
         'items.create',
         'items.update',
@@ -32,6 +33,8 @@ class RoleManagementService
         'permissions.create',
         'permissions.update',
         'permissions.delete',
+        'approval-workflows.view',
+        'approval-workflows.manage',
         'suppliers.view',
         'suppliers.create',
         'suppliers.update',
@@ -51,6 +54,9 @@ class RoleManagementService
         'stock-transfers.view',
         'stock-transfers.create',
         'stock-transfers.approve',
+        'stock-transfers.approve.supervisor',
+        'stock-transfers.approve.department-head',
+        'stock-transfers.approve.inventory-manager',
         'inventory-adjustments.view',
         'inventory-adjustments.create',
         'stock-counts.view',

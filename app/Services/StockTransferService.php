@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Item;
+use App\Models\ApprovalWorkflow;
 use App\Models\StockTransfer;
 use App\Models\StockTransferLine;
 use App\Models\User;
@@ -17,6 +18,11 @@ use Illuminate\Validation\ValidationException;
 
 class StockTransferService
 {
+    public function __construct(
+        public InventoryAuditService $auditService,
+        public ApprovalWorkflowService $approvalWorkflowService,
+    ) {}
+
     /**
      * @param  array{search?: string|null, status?: string|null}  $filters
      * @return LengthAwarePaginator<int, StockTransfer>
@@ -30,6 +36,7 @@ class StockTransferService
                 'destinationLocation:id,location_code,name',
                 'requester:id,name',
                 'approver:id,name',
+                'approvalSteps.actor:id,name',
                 'lines.item:id,item_code,name,unit_of_measure',
             ])
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
@@ -98,7 +105,7 @@ class StockTransferService
     }
 
     /**
-     * @return Collection<int, array{id: int, warehouse_id: int|null, label: string, unit_of_measure: string, quantity_on_hand: float}>
+     * @return Collection<int, array{id: int, item_code: string, barcode: string|null, warehouse_id: int|null, label: string, unit_of_measure: string, quantity_on_hand: float}>
      */
     public function items(): Collection
     {
@@ -106,9 +113,11 @@ class StockTransferService
             ->active()
             ->where('quantity_on_hand', '>', 0)
             ->orderBy('name')
-            ->get(['id', 'item_code', 'name', 'warehouse_id', 'unit_of_measure', 'quantity_on_hand'])
+            ->get(['id', 'item_code', 'barcode', 'name', 'warehouse_id', 'unit_of_measure', 'quantity_on_hand'])
             ->map(fn (Item $item): array => [
                 'id' => $item->id,
+                'item_code' => $item->item_code,
+                'barcode' => $item->barcode,
                 'warehouse_id' => $item->warehouse_id,
                 'label' => "{$item->item_code} - {$item->name}",
                 'unit_of_measure' => $item->unit_of_measure,
@@ -160,7 +169,28 @@ class StockTransferService
                 ]);
             });
 
-            return $transfer->load(['sourceWarehouse', 'destinationWarehouse', 'destinationLocation', 'requester', 'approver', 'lines.item']);
+            $this->auditService->record(
+                $transfer,
+                $requester,
+                'stock-transfer-requested',
+                'Requested stock transfer',
+                [],
+                [
+                    'status' => StockTransfer::STATUS_PENDING,
+                    'source_warehouse_id' => (int) $transfer->source_warehouse_id,
+                    'destination_warehouse_id' => (int) $transfer->destination_warehouse_id,
+                    'destination_location_id' => $transfer->destination_location_id,
+                    'lines' => $lines->all(),
+                ],
+                [
+                    'transfer_number' => $transfer->transfer_number,
+                    'total_quantity_transferred' => (float) $transfer->total_quantity_transferred,
+                ]
+            );
+
+            $this->approvalWorkflowService->start($transfer, ApprovalWorkflow::TYPE_STOCK_TRANSFER);
+
+            return $transfer->load(['sourceWarehouse', 'destinationWarehouse', 'destinationLocation', 'requester', 'approver', 'approvalSteps.actor', 'lines.item']);
         });
     }
 
@@ -178,6 +208,32 @@ class StockTransferService
 
             $this->ensurePending($transfer);
 
+            $approvalResult = $this->approvalWorkflowService->approveCurrentStep(
+                $transfer,
+                $approver,
+                $data['approval_remarks'] ?? null
+            );
+
+            if (! $approvalResult['completed']) {
+                $this->auditService->record(
+                    $transfer,
+                    $approver,
+                    'stock-transfer-approval-step-approved',
+                    'Approved stock transfer workflow step',
+                    ['current_approval_step' => $approvalResult['step']?->name],
+                    [
+                        'current_approval_step' => $this->approvalWorkflowService->currentStep($transfer)?->name,
+                        'approved_step' => $approvalResult['step']?->name,
+                    ],
+                    [
+                        'transfer_number' => $transfer->transfer_number,
+                        'approval_remarks' => $data['approval_remarks'] ?? null,
+                    ]
+                );
+
+                return $transfer->load(['sourceWarehouse', 'destinationWarehouse', 'destinationLocation', 'requester', 'approver', 'approvalSteps.actor', 'lines.item']);
+            }
+
             $items = Item::query()
                 ->whereIn('id', $transfer->lines->pluck('item_id'))
                 ->lockForUpdate()
@@ -193,9 +249,23 @@ class StockTransferService
                 $transfer->source_warehouse_id
             );
 
-            $transfer->lines->each(function (StockTransferLine $line) use ($items, $transfer): void {
+            $oldValues = [
+                'status' => $transfer->status,
+                'approved_by' => $transfer->approved_by,
+                'approved_date' => $transfer->approved_date,
+            ];
+            $newValues = [];
+
+            $transfer->lines->each(function (StockTransferLine $line) use ($items, $transfer, &$oldValues, &$newValues): void {
                 /** @var Item $item */
                 $item = $items->get($line->item_id);
+
+                $oldValues["items.{$item->id}.warehouse_id"] = $item->warehouse_id;
+                $oldValues["items.{$item->id}.warehouse_location_id"] = $item->warehouse_location_id;
+                $newValues["items.{$item->id}.warehouse_id"] = $transfer->destination_warehouse_id;
+                $newValues["items.{$item->id}.warehouse_location_id"] = $transfer->destination_location_id;
+                $newValues["items.{$item->id}.item"] = "{$item->item_code} - {$item->name}";
+                $newValues["items.{$item->id}.quantity_transferred"] = (float) $line->quantity_transferred;
 
                 $item->forceFill([
                     'warehouse_id' => $transfer->destination_warehouse_id,
@@ -210,7 +280,27 @@ class StockTransferService
                 'approval_remarks' => $data['approval_remarks'] ?? null,
             ])->save();
 
-            return $transfer->load(['sourceWarehouse', 'destinationWarehouse', 'destinationLocation', 'requester', 'approver', 'lines.item']);
+            $newValues['status'] = $transfer->status;
+            $newValues['approved_by'] = $transfer->approved_by;
+            $newValues['approved_date'] = $transfer->approved_date;
+
+            $this->auditService->record(
+                $transfer,
+                $approver,
+                'stock-transfer-approved',
+                'Approved stock transfer',
+                $oldValues,
+                $newValues,
+                [
+                    'transfer_number' => $transfer->transfer_number,
+                    'source_warehouse_id' => (int) $transfer->source_warehouse_id,
+                    'destination_warehouse_id' => (int) $transfer->destination_warehouse_id,
+                    'destination_location_id' => $transfer->destination_location_id,
+                    'approval_remarks' => $transfer->approval_remarks,
+                ]
+            );
+
+            return $transfer->load(['sourceWarehouse', 'destinationWarehouse', 'destinationLocation', 'requester', 'approver', 'approvalSteps.actor', 'lines.item']);
         });
     }
 
@@ -227,6 +317,20 @@ class StockTransferService
 
             $this->ensurePending($transfer);
 
+            $step = $this->approvalWorkflowService->currentStep($transfer)
+                ? $this->approvalWorkflowService->rejectCurrentStep(
+                    $transfer,
+                    $approver,
+                    $data['approval_remarks']
+                )
+                : null;
+
+            $oldValues = [
+                'status' => $transfer->status,
+                'approved_by' => $transfer->approved_by,
+                'approved_date' => $transfer->approved_date,
+            ];
+
             $transfer->forceFill([
                 'status' => StockTransfer::STATUS_REJECTED,
                 'approved_by' => $approver->id,
@@ -234,7 +338,26 @@ class StockTransferService
                 'approval_remarks' => $data['approval_remarks'],
             ])->save();
 
-            return $transfer->load(['sourceWarehouse', 'destinationWarehouse', 'destinationLocation', 'requester', 'approver', 'lines.item']);
+            $this->auditService->record(
+                $transfer,
+                $approver,
+                'stock-transfer-rejected',
+                'Rejected stock transfer',
+                $oldValues,
+                [
+                    'status' => $transfer->status,
+                    'approved_by' => $transfer->approved_by,
+                    'approved_date' => $transfer->approved_date,
+                    'approval_remarks' => $transfer->approval_remarks,
+                ],
+                [
+                    'transfer_number' => $transfer->transfer_number,
+                    'approval_step' => $step?->name,
+                    'approval_remarks' => $transfer->approval_remarks,
+                ]
+            );
+
+            return $transfer->load(['sourceWarehouse', 'destinationWarehouse', 'destinationLocation', 'requester', 'approver', 'approvalSteps.actor', 'lines.item']);
         });
     }
 

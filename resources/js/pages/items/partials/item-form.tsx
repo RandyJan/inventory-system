@@ -1,3 +1,7 @@
+import {
+    BarcodeQrPreview,
+    generateInventoryCode,
+} from '@/components/inventory-code-tools';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
     Card,
@@ -22,7 +26,16 @@ import { cn } from '@/lib/utils';
 import { index as itemsIndex } from '@/routes/items';
 import type { RouteFormDefinition } from '@/wayfinder';
 import { Form, Link } from '@inertiajs/react';
-import { Archive, Boxes, DollarSign, Info, Save, Tags } from 'lucide-react';
+import {
+    Archive,
+    Barcode,
+    Boxes,
+    DollarSign,
+    Info,
+    QrCode,
+    Save,
+    Tags,
+} from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 
 export type ItemFormRecord = {
@@ -90,7 +103,9 @@ export function ItemForm({
 }: ItemFormProps) {
     const initialCategoryId = item?.category_id
         ? String(item.category_id)
-        : (categories[0]?.id ? String(categories[0].id) : '');
+        : categories[0]?.id
+          ? String(categories[0].id)
+          : '';
     const [selectedCategoryId, setSelectedCategoryId] =
         useState(initialCategoryId);
     const selectedCategory = useMemo(
@@ -109,6 +124,9 @@ export function ItemForm({
             : '';
     const [selectedSubcategoryId, setSelectedSubcategoryId] =
         useState(initialSubcategoryId);
+    const [itemCode, setItemCode] = useState(item?.item_code ?? '');
+    const [barcode, setBarcode] = useState(item?.barcode ?? '');
+    const codePreviewValue = barcode || itemCode;
 
     return (
         <Form {...action}>
@@ -134,7 +152,10 @@ export function ItemForm({
                                     <Input
                                         id="item_code"
                                         name="item_code"
-                                        defaultValue={item?.item_code ?? ''}
+                                        value={itemCode}
+                                        onChange={(event) =>
+                                            setItemCode(event.target.value)
+                                        }
                                         placeholder="SKU-001"
                                         required
                                     />
@@ -147,10 +168,46 @@ export function ItemForm({
                                     <Input
                                         id="barcode"
                                         name="barcode"
-                                        defaultValue={item?.barcode ?? ''}
+                                        value={barcode}
+                                        onChange={(event) =>
+                                            setBarcode(event.target.value)
+                                        }
                                         placeholder="1234567890123"
                                     />
                                 </Field>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            setBarcode(generateInventoryCode())
+                                        }
+                                    >
+                                        <Barcode className="size-4" />
+                                        Generate barcode
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            const generatedCode =
+                                                generateInventoryCode('QR');
+
+                                            setBarcode(generatedCode);
+
+                                            if (!itemCode) {
+                                                setItemCode(generatedCode);
+                                            }
+                                        }}
+                                    >
+                                        <QrCode className="size-4" />
+                                        Generate QR code
+                                    </Button>
+                                </div>
+                                <BarcodeQrPreview value={codePreviewValue} />
                             </div>
 
                             <Field
@@ -192,7 +249,9 @@ export function ItemForm({
                                 <Field
                                     id="category"
                                     label="Category"
-                                    error={errors.category_id ?? errors.category}
+                                    error={
+                                        errors.category_id ?? errors.category
+                                    }
                                     required
                                 >
                                     <Select
@@ -230,9 +289,7 @@ export function ItemForm({
                                     <Select
                                         name="subcategory_id"
                                         value={selectedSubcategoryId}
-                                        onValueChange={
-                                            setSelectedSubcategoryId
-                                        }
+                                        onValueChange={setSelectedSubcategoryId}
                                         disabled={
                                             !selectedCategory ||
                                             selectedCategory.subcategories

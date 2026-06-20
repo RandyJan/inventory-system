@@ -5,6 +5,7 @@ use App\Models\StockReceiving;
 use App\Models\Supplier;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -29,6 +30,11 @@ function stockReceivingActor(string ...$permissions): User
 test('authorized users can view stock receiving module', function (): void {
     $actor = stockReceivingActor('stock-receivings.view');
     StockReceiving::factory()->create();
+    Item::factory()->create([
+        'item_code' => 'AAA-RCV-SCAN',
+        'barcode' => 'RCV-BARCODE-001',
+        'name' => 'AAA Receiving Scanner Item',
+    ]);
 
     $this->actingAs($actor)
         ->get(route('stock-receivings.index'))
@@ -38,7 +44,9 @@ test('authorized users can view stock receiving module', function (): void {
             ->has('receivings.data', 1)
             ->has('summary')
             ->has('suppliers')
-            ->has('items'));
+            ->has('items')
+            ->where('items.0.item_code', 'AAA-RCV-SCAN')
+            ->where('items.0.barcode', 'RCV-BARCODE-001'));
 });
 
 test('authorized users can record receiving and update item quantity', function (): void {
@@ -84,4 +92,21 @@ test('authorized users can record receiving and update item quantity', function 
 
     expect($item->fresh()->quantity_on_hand)->toEqual('17.00');
     expect($supplier->fresh()->fulfilled_orders)->toBe(1);
+
+    $activity = Activity::query()
+        ->where('log_name', 'inventory-tracking')
+        ->where('event', 'stock-received')
+        ->firstOrFail();
+
+    expect($activity->causer_id)->toBe($actor->id)
+        ->and($activity->subject_type)->toBe(StockReceiving::class)
+        ->and($activity->description)->toBe('Recorded stock receiving')
+        ->and($activity->properties->get('old_values'))->toMatchArray([
+            "items.{$item->id}.quantity_on_hand" => 5.0,
+        ])
+        ->and($activity->properties->get('new_values'))->toMatchArray([
+            "items.{$item->id}.quantity_on_hand" => 17.0,
+            "items.{$item->id}.quantity_received" => 12.0,
+            "items.{$item->id}.unit_of_measure" => 'PCS',
+        ]);
 });

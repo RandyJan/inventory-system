@@ -15,7 +15,12 @@ class AuditService
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('description', 'like', "%{$search}%")
-                    ->orWhere('log_name', 'like', "%{$search}%");
+                    ->orWhere('log_name', 'like', "%{$search}%")
+                    ->orWhere('properties', 'like', "%{$search}%")
+                    ->orWhereHas('causer', function ($q) use ($search): void {
+                        $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -48,6 +53,14 @@ class AuditService
 
             if ($filters['type'] === 'role-management') {
                 $query->where('log_name', 'role-management');
+            }
+
+            if ($filters['type'] === 'permission-management') {
+                $query->where('log_name', 'permission-management');
+            }
+
+            if ($filters['type'] === 'inventory-tracking') {
+                $query->where('log_name', 'inventory-tracking');
             }
         }
 

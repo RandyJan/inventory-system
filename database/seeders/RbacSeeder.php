@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\ApprovalWorkflow;
 use App\Services\RoleManagementService;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -51,6 +52,11 @@ class RbacSeeder extends Seeder
             'guard_name' => 'web',
         ]);
 
+        $supervisorRole = Role::firstOrCreate([
+            'name' => 'Supervisor',
+            'guard_name' => 'web',
+        ]);
+
         $auditorRole = Role::firstOrCreate([
             'name' => 'Auditor/View-Only User',
             'guard_name' => 'web',
@@ -88,7 +94,15 @@ class RbacSeeder extends Seeder
         $departmentHeadRole->syncPermissions(
             $permissions->filter(fn ($permission) => str_contains($permission->name, 'request') ||
                 str_contains($permission->name, 'approval') ||
-                str_contains($permission->name, 'requisition')
+                str_contains($permission->name, 'requisition') ||
+                $permission->name === 'stock-transfers.approve.department-head'
+            )->values()
+        );
+
+        $supervisorRole->syncPermissions(
+            $permissions->filter(fn ($permission) => $permission->name === 'dashboard.view' ||
+                $permission->name === 'stock-transfers.view' ||
+                $permission->name === 'stock-transfers.approve.supervisor'
             )->values()
         );
 
@@ -102,6 +116,44 @@ class RbacSeeder extends Seeder
             $permissions->filter(fn ($permission) => $permission->name === 'dashboard.view')->values()
         );
 
+        $this->seedApprovalWorkflow();
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    private function seedApprovalWorkflow(): void
+    {
+        $workflow = ApprovalWorkflow::firstOrCreate(
+            ['workflow_type' => ApprovalWorkflow::TYPE_STOCK_TRANSFER],
+            [
+                'name' => 'Stock Transfer Approval',
+                'description' => 'Request > Supervisor > Department Head > Inventory Manager',
+                'is_active' => true,
+            ]
+        );
+
+        $workflow->steps()->delete();
+        collect([
+            [
+                'name' => 'Supervisor',
+                'role_name' => 'Supervisor',
+                'permission_name' => 'stock-transfers.approve.supervisor',
+            ],
+            [
+                'name' => 'Department Head',
+                'role_name' => 'Department Head',
+                'permission_name' => 'stock-transfers.approve.department-head',
+            ],
+            [
+                'name' => 'Inventory Manager',
+                'role_name' => 'Inventory Manager',
+                'permission_name' => 'stock-transfers.approve.inventory-manager',
+            ],
+        ])->each(function (array $step, int $index) use ($workflow): void {
+            $workflow->steps()->create([
+                'level' => $index + 1,
+                ...$step,
+            ]);
+        });
     }
 }

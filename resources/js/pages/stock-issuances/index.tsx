@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { InventoryScanner } from '@/components/inventory-code-tools';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,7 +48,6 @@ import {
     Printer,
     Search,
     Trash2,
-    UserRound,
 } from 'lucide-react';
 import { type FormEvent, type ReactNode, useState } from 'react';
 
@@ -86,6 +86,8 @@ type PaginatedIssuances = {
 type ItemOption = {
     id: number;
     label: string;
+    item_code?: string | null;
+    barcode?: string | null;
     unit_of_measure: string;
     quantity_on_hand: number;
 };
@@ -277,9 +279,7 @@ export default function StockIssuancesIndex({
                                             <TableCell>
                                                 <div className="min-w-44 space-y-1">
                                                     <p className="font-medium">
-                                                        {
-                                                            issuance.issue_number
-                                                        }
+                                                        {issuance.issue_number}
                                                     </p>
                                                     <p className="text-sm text-muted-foreground">
                                                         Requestor:{' '}
@@ -451,6 +451,52 @@ function IssuanceDialog({ items }: { items: ItemOption[] }) {
         );
     }
 
+    function handleScannedItem(item: ItemOption) {
+        const itemId = String(item.id);
+        const existingLineIndex = form.data.lines.findIndex(
+            (line) => line.item_id === itemId,
+        );
+        const emptyLineIndex = form.data.lines.findIndex(
+            (line) => !line.item_id,
+        );
+
+        if (existingLineIndex >= 0) {
+            form.setData(
+                'lines',
+                form.data.lines.map((line, lineIndex) =>
+                    lineIndex === existingLineIndex
+                        ? {
+                              ...line,
+                              quantity_issued: String(
+                                  Number(line.quantity_issued || 0) + 1,
+                              ),
+                          }
+                        : line,
+                ),
+            );
+
+            return;
+        }
+
+        if (emptyLineIndex >= 0) {
+            form.setData(
+                'lines',
+                form.data.lines.map((line, lineIndex) =>
+                    lineIndex === emptyLineIndex
+                        ? { ...line, item_id: itemId, quantity_issued: '1' }
+                        : line,
+                ),
+            );
+
+            return;
+        }
+
+        form.setData('lines', [
+            ...form.data.lines,
+            { item_id: itemId, quantity_issued: '1' },
+        ]);
+    }
+
     function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
@@ -583,6 +629,12 @@ function IssuanceDialog({ items }: { items: ItemOption[] }) {
                         </div>
 
                         <InputError message={form.errors.lines} />
+
+                        <InventoryScanner
+                            items={items}
+                            contextLabel="issuance"
+                            onScan={handleScannedItem}
+                        />
 
                         <div className="space-y-3">
                             {form.data.lines.map((line, index) => {

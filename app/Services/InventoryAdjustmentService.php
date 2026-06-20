@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class InventoryAdjustmentService
 {
+    public function __construct(public InventoryAuditService $auditService) {}
+
     /**
      * @param  array{search?: string|null, adjustment_type?: string|null, reason?: string|null}  $filters
      * @return LengthAwarePaginator<int, InventoryAdjustment>
@@ -121,7 +123,10 @@ class InventoryAdjustmentService
                 'remarks' => $data['remarks'] ?? null,
             ]);
 
-            $lines->each(function (array $line) use ($adjustment, $items, $isIncrease): void {
+            $oldValues = [];
+            $newValues = [];
+
+            $lines->each(function (array $line) use ($adjustment, $items, $isIncrease, &$oldValues, &$newValues): void {
                 /** @var Item $item */
                 $item = $items->get($line['item_id']);
                 $quantityBefore = (float) $item->quantity_on_hand;
@@ -141,7 +146,28 @@ class InventoryAdjustmentService
                 $item->forceFill([
                     'quantity_on_hand' => $quantityAfter,
                 ])->save();
+
+                $oldValues["items.{$item->id}.quantity_on_hand"] = $quantityBefore;
+                $newValues["items.{$item->id}.quantity_on_hand"] = $quantityAfter;
+                $newValues["items.{$item->id}.item"] = "{$item->item_code} - {$item->name}";
+                $newValues["items.{$item->id}.quantity_adjusted"] = $line['quantity_adjusted'];
+                $newValues["items.{$item->id}.unit_of_measure"] = $item->unit_of_measure;
             });
+
+            $this->auditService->record(
+                $adjustment,
+                $adjuster,
+                'inventory-adjusted',
+                'Recorded inventory adjustment',
+                $oldValues,
+                $newValues,
+                [
+                    'adjustment_number' => $adjustment->adjustment_number,
+                    'adjustment_type' => $adjustment->adjustment_type,
+                    'reason' => $adjustment->reason,
+                    'total_quantity_adjusted' => (float) $adjustment->total_quantity_adjusted,
+                ]
+            );
 
             return $adjustment->load(['adjuster', 'lines.item']);
         });

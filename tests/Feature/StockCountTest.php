@@ -30,6 +30,11 @@ test('authorized users can view stock count module', function (): void {
     $actor = stockCountActor('stock-counts.view');
     $count = StockCount::factory()->create();
     StockCountLine::factory()->for($count)->create();
+    Item::factory()->create([
+        'item_code' => 'AAA-CNT-SCAN',
+        'barcode' => 'CNT-BARCODE-001',
+        'name' => 'AAA Count Scanner Item',
+    ]);
 
     $this->actingAs($actor)
         ->get(route('stock-counts.index'))
@@ -39,6 +44,8 @@ test('authorized users can view stock count module', function (): void {
             ->has('counts.data', 1)
             ->has('summary')
             ->has('items')
+            ->where('items.0.item_code', 'AAA-CNT-SCAN')
+            ->where('items.0.barcode', 'CNT-BARCODE-001')
             ->has('types'));
 });
 

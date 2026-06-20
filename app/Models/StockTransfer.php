@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockTransfer extends Model
@@ -86,5 +87,10 @@ class StockTransfer extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(StockTransferLine::class);
+    }
+
+    public function approvalSteps(): MorphMany
+    {
+        return $this->morphMany(ApprovalStep::class, 'approvable')->orderBy('level');
     }
 }

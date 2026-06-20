@@ -18,6 +18,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Table,
     TableBody,
     TableCell,
@@ -25,13 +32,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { show as auditShow, index as auditsIndex } from '@/routes/audits';
@@ -48,6 +48,7 @@ import {
 } from '@tanstack/react-table';
 import {
     ArrowUpDown,
+    Boxes,
     Clock4,
     History,
     LogIn,
@@ -101,7 +102,9 @@ type ActivityType =
     | 'logout'
     | 'authentication'
     | 'user-management'
-    | 'role-management';
+    | 'role-management'
+    | 'permission-management'
+    | 'inventory-tracking';
 
 export default function AuditIndex({
     activities,
@@ -119,13 +122,24 @@ export default function AuditIndex({
 
     const data = useMemo(() => activities.data ?? [], [activities]);
     const summary = useMemo(() => {
-        const loginCount = data.filter((record) => record.event === 'login' || /logged in/i.test(record.description)).length;
-        const logoutCount = data.filter((record) => record.event === 'logout' || /logged out/i.test(record.description)).length;
+        const loginCount = data.filter(
+            (record) =>
+                record.event === 'login' ||
+                /logged in/i.test(record.description),
+        ).length;
+        const logoutCount = data.filter(
+            (record) =>
+                record.event === 'logout' ||
+                /logged out/i.test(record.description),
+        ).length;
 
         return {
             total: activities.total,
             loginCount,
             logoutCount,
+            inventoryCount: data.filter(
+                (record) => record.log_name === 'inventory-tracking',
+            ).length,
         };
     }, [activities.total, data]);
 
@@ -185,6 +199,38 @@ export default function AuditIndex({
                 </span>
             ),
         }),
+        columnHelper.display({
+            id: 'change',
+            header: 'Old / New Value',
+            cell: (info) => {
+                const changes = toReadableChangeItems(
+                    info.row.original.properties,
+                ).slice(0, 2);
+
+                if (changes.length === 0) {
+                    return (
+                        <span className="text-sm text-muted-foreground">
+                            No tracked value changes
+                        </span>
+                    );
+                }
+
+                return (
+                    <div className="min-w-56 space-y-2 text-sm">
+                        {changes.map((change) => (
+                            <div key={change.label} className="space-y-1">
+                                <p className="font-medium text-foreground">
+                                    {change.label}
+                                </p>
+                                <p className="text-muted-foreground">
+                                    {change.oldValue} {'->'} {change.newValue}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                );
+            },
+        }),
         columnHelper.accessor('created_at', {
             header: ({ column }) => (
                 <button
@@ -218,48 +264,93 @@ export default function AuditIndex({
                         }}
                     >
                         <DialogTrigger asChild>
-                            <Button size="sm" variant="outline" onClick={() => setSelected(info.row.original)}>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelected(info.row.original)}
+                            >
                                 Quick View
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-3xl">
                             <DialogHeader>
-                                <DialogTitle>Audit Record #{info.row.original.id}</DialogTitle>
-                                <DialogDescription>{toReadableActivityTitle(info.row.original)}</DialogDescription>
+                                <DialogTitle>
+                                    Audit Record #{info.row.original.id}
+                                </DialogTitle>
+                                <DialogDescription>
+                                    {toReadableActivityTitle(info.row.original)}
+                                </DialogDescription>
                             </DialogHeader>
 
                             <div className="grid gap-4 md:grid-cols-2">
                                 <Card className="gap-3 py-4">
                                     <CardHeader className="px-4">
-                                        <CardTitle className="text-base">What happened</CardTitle>
-                                        <CardDescription>{toReadableActivityDetails(info.row.original)}</CardDescription>
+                                        <CardTitle className="text-base">
+                                            What happened
+                                        </CardTitle>
+                                        <CardDescription>
+                                            {toReadableActivityDetails(
+                                                info.row.original,
+                                            )}
+                                        </CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-2 px-4 text-sm">
                                         <p>
-                                            <span className="font-medium text-foreground">When: </span>
-                                            <span className="text-muted-foreground">{formatDateTime(info.row.original.created_at)}</span>
+                                            <span className="font-medium text-foreground">
+                                                When:{' '}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                                {formatDateTime(
+                                                    info.row.original
+                                                        .created_at,
+                                                )}
+                                            </span>
                                         </p>
                                         <p>
-                                            <span className="font-medium text-foreground">User: </span>
-                                            <span className="text-muted-foreground">{info.row.original.causer?.name ?? 'System'}</span>
+                                            <span className="font-medium text-foreground">
+                                                User:{' '}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                                {info.row.original.causer
+                                                    ?.name ?? 'System'}
+                                            </span>
                                         </p>
                                         <p>
-                                            <span className="font-medium text-foreground">Category: </span>
-                                            <span className="text-muted-foreground">{getBadgeVariant(info.row.original).label}</span>
+                                            <span className="font-medium text-foreground">
+                                                Category:{' '}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                                {
+                                                    getBadgeVariant(
+                                                        info.row.original,
+                                                    ).label
+                                                }
+                                            </span>
                                         </p>
                                     </CardContent>
                                 </Card>
 
                                 <Card className="gap-3 py-4">
                                     <CardHeader className="px-4">
-                                        <CardTitle className="text-base">Important details</CardTitle>
-                                        <CardDescription>Presented in simple language for quick review.</CardDescription>
+                                        <CardTitle className="text-base">
+                                            Important details
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Presented in simple language for
+                                            quick review.
+                                        </CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-2 px-4 text-sm">
-                                        {toReadablePropertyItems(info.row.original.properties).map((item) => (
+                                        {toReadablePropertyItems(
+                                            info.row.original.properties,
+                                        ).map((item) => (
                                             <p key={item.label}>
-                                                <span className="font-medium text-foreground">{item.label}: </span>
-                                                <span className="text-muted-foreground">{item.value}</span>
+                                                <span className="font-medium text-foreground">
+                                                    {item.label}:{' '}
+                                                </span>
+                                                <span className="text-muted-foreground">
+                                                    {item.value}
+                                                </span>
                                             </p>
                                         ))}
                                     </CardContent>
@@ -268,22 +359,85 @@ export default function AuditIndex({
 
                             <Card className="gap-3 py-4">
                                 <CardHeader className="px-4">
-                                    <CardTitle className="text-base">Technical JSON</CardTitle>
+                                    <CardTitle className="text-base">
+                                        Old and New Values
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Tracked values captured with this
+                                        activity.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="grid gap-3 px-4 md:grid-cols-2">
+                                    {toReadableChangeItems(
+                                        info.row.original.properties,
+                                    ).map((change) => (
+                                        <div
+                                            key={change.label}
+                                            className="rounded-md border p-3 text-sm"
+                                        >
+                                            <p className="font-medium text-foreground">
+                                                {change.label}
+                                            </p>
+                                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Old Value
+                                                    </p>
+                                                    <p>{change.oldValue}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        New Value
+                                                    </p>
+                                                    <p>{change.newValue}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {toReadableChangeItems(
+                                        info.row.original.properties,
+                                    ).length === 0 && (
+                                        <p className="text-sm text-muted-foreground">
+                                            No old or new values were captured
+                                            for this activity.
+                                        </p>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card className="gap-3 py-4">
+                                <CardHeader className="px-4">
+                                    <CardTitle className="text-base">
+                                        Technical JSON
+                                    </CardTitle>
                                     <CardDescription>
                                         Raw data for technical troubleshooting.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 px-4 lg:grid-cols-2">
                                     <div>
-                                        <h4 className="text-sm font-medium">Properties JSON</h4>
+                                        <h4 className="text-sm font-medium">
+                                            Properties JSON
+                                        </h4>
                                         <pre className="mt-2 max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 text-xs leading-5">
-                                            {JSON.stringify(info.row.original.properties ?? {}, null, 2)}
+                                            {JSON.stringify(
+                                                info.row.original.properties ??
+                                                    {},
+                                                null,
+                                                2,
+                                            )}
                                         </pre>
                                     </div>
                                     <div>
-                                        <h4 className="text-sm font-medium">Full JSON</h4>
+                                        <h4 className="text-sm font-medium">
+                                            Full JSON
+                                        </h4>
                                         <pre className="mt-2 max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 text-xs leading-5">
-                                            {JSON.stringify(info.row.original, null, 2)}
+                                            {JSON.stringify(
+                                                info.row.original,
+                                                null,
+                                                2,
+                                            )}
                                         </pre>
                                     </div>
                                 </CardContent>
@@ -298,7 +452,9 @@ export default function AuditIndex({
                     </Dialog>
                     <Link
                         href={auditShow(info.row.original.id).url}
-                        className={cn(buttonVariants({ size: 'sm', variant: 'ghost' }))}
+                        className={cn(
+                            buttonVariants({ size: 'sm', variant: 'ghost' }),
+                        )}
                     >
                         Open Page
                     </Link>
@@ -343,65 +499,76 @@ export default function AuditIndex({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold">Audit Logs</h1>
-                        <p className="text-sm text-muted-foreground">Track user and system activities including login and logout events.</p>
+                        <p className="text-sm text-muted-foreground">
+                            Track user and system activities including login and
+                            logout events.
+                        </p>
                     </div>
 
                     <form
-    onSubmit={submitFilters}
-    method="get"
-    action={auditsIndex().url}
-    className="flex flex-col gap-2 sm:flex-row sm:items-end"
->
-    {/* Search */}
-    <div className="grid gap-1">
-        <span className="text-sm text-muted-foreground">Search</span>
-        <Input
-            name="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search activity, user, or category"
-            className="sm:w-64"
-        />
-    </div>
-
-    {/* Dropdown */}
-    <div className="grid gap-1">
-        <span className="text-sm text-muted-foreground">Type</span>
-        <Select
-            value={selectedType}
-            onValueChange={(value) =>
-                setSelectedType(value as ActivityType)
-            }
-        >
-            <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-
-            <SelectContent>
-                {activityTypeOptions.map((typeOption) => (
-                    <SelectItem
-                        key={typeOption.value}
-                        value={typeOption.value}
+                        onSubmit={submitFilters}
+                        method="get"
+                        action={auditsIndex().url}
+                        className="flex flex-col gap-2 sm:flex-row sm:items-end"
                     >
-                        {typeOption.label}
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
-    </div>
+                        {/* Search */}
+                        <div className="grid gap-1">
+                            <span className="text-sm text-muted-foreground">
+                                Search
+                            </span>
+                            <Input
+                                name="search"
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                placeholder="Search activity, user, or category"
+                                className="sm:w-64"
+                            />
+                        </div>
 
-    {/* Apply button */}
-    <Button type="submit" className="mt-1">
-        Apply
-    </Button>
-</form>
+                        {/* Dropdown */}
+                        <div className="grid gap-1">
+                            <span className="text-sm text-muted-foreground">
+                                Type
+                            </span>
+                            <Select
+                                value={selectedType}
+                                onValueChange={(value) =>
+                                    setSelectedType(value as ActivityType)
+                                }
+                            >
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+
+                                <SelectContent>
+                                    {activityTypeOptions.map((typeOption) => (
+                                        <SelectItem
+                                            key={typeOption.value}
+                                            value={typeOption.value}
+                                        >
+                                            {typeOption.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Apply button */}
+                        <Button type="submit" className="mt-1">
+                            Apply
+                        </Button>
+                    </form>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <Card className="gap-2 py-4">
                         <CardHeader className="px-4 pb-0">
                             <CardDescription>Total Records</CardDescription>
-                            <CardTitle className="text-2xl">{summary.total}</CardTitle>
+                            <CardTitle className="text-2xl">
+                                {summary.total}
+                            </CardTitle>
                         </CardHeader>
                         <CardContent className="px-4 pt-0 text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
@@ -413,7 +580,9 @@ export default function AuditIndex({
                     <Card className="gap-2 py-4">
                         <CardHeader className="px-4 pb-0">
                             <CardDescription>Login Events</CardDescription>
-                            <CardTitle className="text-2xl">{summary.loginCount}</CardTitle>
+                            <CardTitle className="text-2xl">
+                                {summary.loginCount}
+                            </CardTitle>
                         </CardHeader>
                         <CardContent className="px-4 pt-0 text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
@@ -425,12 +594,30 @@ export default function AuditIndex({
                     <Card className="gap-2 py-4">
                         <CardHeader className="px-4 pb-0">
                             <CardDescription>Logout Events</CardDescription>
-                            <CardTitle className="text-2xl">{summary.logoutCount}</CardTitle>
+                            <CardTitle className="text-2xl">
+                                {summary.logoutCount}
+                            </CardTitle>
                         </CardHeader>
                         <CardContent className="px-4 pt-0 text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
                                 <LogOut className="size-4" />
                                 Sign-out actions
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="gap-2 py-4">
+                        <CardHeader className="px-4 pb-0">
+                            <CardDescription>
+                                Inventory Tracking
+                            </CardDescription>
+                            <CardTitle className="text-2xl">
+                                {summary.inventoryCount}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="px-4 pt-0 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                                <Boxes className="size-4" />
+                                Stock movements and item changes
                             </div>
                         </CardContent>
                     </Card>
@@ -442,14 +629,17 @@ export default function AuditIndex({
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <TableRow key={headerGroup.id}>
                                     {headerGroup.headers.map((header) => (
-                                        <TableHead key={header.id} className="text-xs font-semibold">
+                                        <TableHead
+                                            key={header.id}
+                                            className="text-xs font-semibold"
+                                        >
                                             {header.isPlaceholder
                                                 ? null
                                                 : flexRender(
-                                                    header.column
-                                                        .columnDef.header,
-                                                    header.getContext(),
-                                                )}
+                                                      header.column.columnDef
+                                                          .header,
+                                                      header.getContext(),
+                                                  )}
                                         </TableHead>
                                     ))}
                                 </TableRow>
@@ -461,7 +651,10 @@ export default function AuditIndex({
                                 table.getRowModel().rows.map((row) => (
                                     <TableRow key={row.id}>
                                         {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id} className="align-top whitespace-normal">
+                                            <TableCell
+                                                key={cell.id}
+                                                className="align-top whitespace-normal"
+                                            >
                                                 {flexRender(
                                                     cell.column.columnDef.cell,
                                                     cell.getContext(),
@@ -472,7 +665,10 @@ export default function AuditIndex({
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                    <TableCell
+                                        colSpan={6}
+                                        className="h-24 text-center text-muted-foreground"
+                                    >
                                         No activity logs found.
                                     </TableCell>
                                 </TableRow>
@@ -483,7 +679,8 @@ export default function AuditIndex({
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
-                        Showing {activities.from ?? 0} to {activities.to ?? 0} of {activities.total}
+                        Showing {activities.from ?? 0} to {activities.to ?? 0}{' '}
+                        of {activities.total}
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                         {activities.links.map((link, index) =>
@@ -500,7 +697,9 @@ export default function AuditIndex({
                                             size: 'sm',
                                         }),
                                     )}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                    dangerouslySetInnerHTML={{
+                                        __html: link.label,
+                                    }}
                                 />
                             ) : (
                                 <span
@@ -512,7 +711,9 @@ export default function AuditIndex({
                                         }),
                                         'pointer-events-none opacity-50',
                                     )}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                    dangerouslySetInnerHTML={{
+                                        __html: link.label,
+                                    }}
                                 />
                             ),
                         )}
@@ -530,6 +731,8 @@ const activityTypeOptions: Array<{ value: ActivityType; label: string }> = [
     { value: 'authentication', label: 'Authentication' },
     { value: 'user-management', label: 'User Management' },
     { value: 'role-management', label: 'Role Management' },
+    { value: 'permission-management', label: 'Permission Management' },
+    { value: 'inventory-tracking', label: 'Inventory Tracking' },
 ];
 
 function formatDateTime(value: string): string {
@@ -560,6 +763,10 @@ function toReadableActivityTitle(activity: ActivityRecord): string {
         return 'User account was deactivated';
     }
 
+    if (activity.log_name === 'inventory-tracking') {
+        return toHeadline(activity.description);
+    }
+
     return activity.description;
 }
 
@@ -585,10 +792,67 @@ function toReadableActivityDetails(activity: ActivityRecord): string {
         return `${actor} changed a user's role.`;
     }
 
+    if (activity.log_name === 'inventory-tracking') {
+        const action =
+            extractProperty(activity.properties, 'action') ??
+            activity.description;
+
+        return `${actor} performed inventory action: ${toHeadline(action.replaceAll('-', ' '))}.`;
+    }
+
     return `${actor} performed: ${activity.description}.`;
 }
 
-function toReadablePropertyItems(properties: ActivityRecord['properties']): Array<{ label: string; value: string }> {
+function toReadableChangeItems(
+    properties: ActivityRecord['properties'],
+): Array<{ label: string; oldValue: string; newValue: string }> {
+    if (!properties || typeof properties !== 'object') {
+        return [];
+    }
+
+    const oldValues = (properties as Record<string, unknown>).old_values;
+    const newValues = (properties as Record<string, unknown>).new_values;
+
+    if (!isRecord(oldValues) && !isRecord(newValues)) {
+        return [];
+    }
+
+    const oldRecord = isRecord(oldValues) ? oldValues : {};
+    const newRecord = isRecord(newValues) ? newValues : {};
+    const keys = Array.from(
+        new Set([...Object.keys(oldRecord), ...Object.keys(newRecord)]),
+    ).filter(
+        (key) => !key.endsWith('.item') && !key.endsWith('.unit_of_measure'),
+    );
+
+    return keys.map((key) => ({
+        label: toReadableChangeLabel(key, newRecord),
+        oldValue: toReadableValue(oldRecord[key]),
+        newValue: toReadableValue(newRecord[key]),
+    }));
+}
+
+function toReadableChangeLabel(
+    key: string,
+    newValues: Record<string, unknown>,
+): string {
+    const itemPrefix = key.match(/^items\.(\d+)\./);
+    const field = toHeadline(
+        key.split('.').at(-1)?.replaceAll('_', ' ') ?? key,
+    );
+
+    if (!itemPrefix) {
+        return field;
+    }
+
+    const itemLabel = newValues[`items.${itemPrefix[1]}.item`];
+
+    return `${toReadableValue(itemLabel)} - ${field}`;
+}
+
+function toReadablePropertyItems(
+    properties: ActivityRecord['properties'],
+): Array<{ label: string; value: string }> {
     if (!properties || typeof properties !== 'object') {
         return [{ label: 'Details', value: 'No extra details available.' }];
     }
@@ -625,6 +889,10 @@ function toReadableValue(value: unknown): string {
     return String(value);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 function toHeadline(value: string): string {
     return value
         .split(' ')
@@ -633,7 +901,10 @@ function toHeadline(value: string): string {
         .join(' ');
 }
 
-function extractProperty(properties: ActivityRecord['properties'], path: string): string | null {
+function extractProperty(
+    properties: ActivityRecord['properties'],
+    path: string,
+): string | null {
     if (!properties || typeof properties !== 'object') {
         return null;
     }
@@ -656,11 +927,16 @@ function extractProperty(properties: ActivityRecord['properties'], path: string)
     return cursor === null || cursor === undefined ? null : String(cursor);
 }
 
-function getBadgeVariant(activity: ActivityRecord): { label: string; className: string; icon: ReactNode } {
+function getBadgeVariant(activity: ActivityRecord): {
+    label: string;
+    className: string;
+    icon: ReactNode;
+} {
     if (/logged in/i.test(activity.description)) {
         return {
             label: 'Login',
-            className: 'border-emerald-300 text-emerald-700 dark:text-emerald-300',
+            className:
+                'border-emerald-300 text-emerald-700 dark:text-emerald-300',
             icon: <LogIn className="size-3.5" />,
         };
     }
@@ -689,8 +965,18 @@ function getBadgeVariant(activity: ActivityRecord): { label: string; className: 
         };
     }
 
+    if (activity.log_name === 'inventory-tracking') {
+        return {
+            label: 'Inventory Tracking',
+            className: 'border-teal-300 text-teal-700 dark:text-teal-300',
+            icon: <Boxes className="size-3.5" />,
+        };
+    }
+
     return {
-        label: toHeadline((activity.log_name ?? 'General').replaceAll('-', ' ')),
+        label: toHeadline(
+            (activity.log_name ?? 'General').replaceAll('-', ' '),
+        ),
         className: 'border-muted-foreground/20 text-muted-foreground',
         icon: <Clock4 className="size-3.5" />,
     };

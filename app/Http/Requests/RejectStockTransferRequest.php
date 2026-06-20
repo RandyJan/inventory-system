@@ -8,7 +8,14 @@ class RejectStockTransferRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('stock-transfers.approve') ?? false;
+        $user = $this->user();
+
+        return $user?->can('stock-transfers.approve') ||
+            $user?->can('stock-transfers.approve.supervisor') ||
+            $user?->can('stock-transfers.approve.department-head') ||
+            $user?->can('stock-transfers.approve.inventory-manager') ||
+            $user?->can('approval-workflows.manage') ||
+            false;
     }
 
     /**

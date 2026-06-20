@@ -14,6 +14,8 @@ use Illuminate\Support\Str;
 
 class StockCountService
 {
+    public function __construct(public InventoryAuditService $auditService) {}
+
     /**
      * @param  array{search?: string|null, count_type?: string|null, variance?: string|null}  $filters
      * @return LengthAwarePaginator<int, StockCount>
@@ -56,16 +58,18 @@ class StockCountService
     }
 
     /**
-     * @return Collection<int, array{id: int, label: string, unit_of_measure: string, quantity_on_hand: float}>
+     * @return Collection<int, array{id: int, item_code: string, barcode: string|null, label: string, unit_of_measure: string, quantity_on_hand: float}>
      */
     public function items(): Collection
     {
         return Item::query()
             ->active()
             ->orderBy('name')
-            ->get(['id', 'item_code', 'name', 'unit_of_measure', 'quantity_on_hand'])
+            ->get(['id', 'item_code', 'barcode', 'name', 'unit_of_measure', 'quantity_on_hand'])
             ->map(fn (Item $item): array => [
                 'id' => $item->id,
+                'item_code' => $item->item_code,
+                'barcode' => $item->barcode,
                 'label' => "{$item->item_code} - {$item->name}",
                 'unit_of_measure' => $item->unit_of_measure,
                 'quantity_on_hand' => (float) $item->quantity_on_hand,
@@ -120,7 +124,10 @@ class StockCountService
                 'remarks' => $data['remarks'] ?? null,
             ]);
 
-            $preparedLines->each(function (array $line) use ($stockCount): void {
+            $oldValues = [];
+            $newValues = [];
+
+            $preparedLines->each(function (array $line) use ($stockCount, &$oldValues, &$newValues): void {
                 /** @var Item $item */
                 $item = $line['item'];
 
@@ -133,7 +140,29 @@ class StockCountService
                     'recommendation' => $line['recommendation'],
                     'remarks' => $line['remarks'],
                 ]);
+
+                $oldValues["items.{$item->id}.quantity_on_hand"] = $line['system_quantity'];
+                $newValues["items.{$item->id}.quantity_on_hand"] = $line['actual_quantity'];
+                $newValues["items.{$item->id}.item"] = "{$item->item_code} - {$item->name}";
+                $newValues["items.{$item->id}.variance_quantity"] = $line['variance_quantity'];
+                $newValues["items.{$item->id}.recommendation"] = $line['recommendation'];
+                $newValues["items.{$item->id}.unit_of_measure"] = $item->unit_of_measure;
             });
+
+            $this->auditService->record(
+                $stockCount,
+                $counter,
+                'stock-counted',
+                'Recorded stock count',
+                $oldValues,
+                $newValues,
+                [
+                    'count_number' => $stockCount->count_number,
+                    'count_type' => $stockCount->count_type,
+                    'variance_items_count' => $stockCount->variance_items_count,
+                    'total_absolute_variance' => (float) $stockCount->total_absolute_variance,
+                ]
+            );
 
             return $stockCount->load(['counter', 'lines.item']);
         });
