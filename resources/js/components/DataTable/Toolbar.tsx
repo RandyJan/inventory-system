@@ -1,5 +1,3 @@
-import React from 'react';
-
 type ColumnVisibility = Record<string, boolean>;
 
 type ColumnItem = {
@@ -25,36 +23,49 @@ export default function Toolbar({
     selectedCount = 0,
 }: Props) {
     return (
-        <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
                 <input
                     value={globalFilter}
                     onChange={(e) => setGlobalFilter(e.target.value)}
                     placeholder="Search..."
-                    className="px-3 py-2 border rounded-md"
+                    className="rounded-md border px-3 py-2"
                 />
-                <div className="text-sm text-muted-foreground">{selectedCount} selected</div>
+                <div className="text-sm text-muted-foreground">
+                    {selectedCount} selected
+                </div>
             </div>
             <div className="flex items-center gap-2">
                 <div className="relative inline-block text-left">
                     <details className="relative">
-                        <summary className="px-3 py-2 bg-gray-100 rounded cursor-pointer">Columns</summary>
-                        <div className="absolute right-0 mt-2 w-48 rounded border bg-white shadow z-10 p-2">
+                        <summary className="cursor-pointer rounded bg-gray-100 px-3 py-2">
+                            Columns
+                        </summary>
+                        <div className="absolute right-0 z-10 mt-2 w-48 rounded border bg-white p-2 shadow">
                             {columns.map((col) => (
-                                <label key={col.id} className="flex items-center gap-2 p-1">
+                                <label
+                                    key={col.id}
+                                    className="flex items-center gap-2 p-1"
+                                >
                                     <input
                                         type="checkbox"
-                                        checked={columnVisibility[col.id] ?? true}
+                                        checked={
+                                            columnVisibility[col.id] ?? true
+                                        }
                                         onChange={() => toggleColumn?.(col.id)}
                                     />
-                                    <span className="text-sm">{col.header}</span>
+                                    <span className="text-sm">
+                                        {col.header}
+                                    </span>
                                 </label>
                             ))}
                         </div>
                     </details>
                 </div>
 
-                <button className="px-3 py-2 bg-indigo-600 text-white rounded">Export</button>
+                <button className="rounded bg-indigo-600 px-3 py-2 text-white">
+                    Export
+                </button>
             </div>
         </div>
     );

@@ -34,13 +34,7 @@ import {
     type ColumnDef,
     type SortingState,
 } from '@tanstack/react-table';
-import {
-    ArrowUpDown,
-    CheckCircle2,
-    PencilLine,
-    Search,
-    XCircle,
-} from 'lucide-react';
+import { ArrowUpDown, CheckCircle2, Search, XCircle } from 'lucide-react';
 import { FormEvent, memo, useCallback, useMemo, useState } from 'react';
 
 type RoleOption = {
@@ -93,132 +87,132 @@ const createColumns = (
     roles: RoleOption[],
     onUpdateRole: (userId: number, roleName: string | null) => void,
 ): ColumnDef<ManagedUser>[] => [
-        {
-            accessorKey: 'name',
-            header: ({ column }) => (
-                <button
-                    className="flex items-center gap-2 hover:text-foreground"
-                    onClick={() =>
-                        column.toggleSorting(column.getIsSorted() === 'asc')
-                    }
-                >
-                    User
-                    <ArrowUpDown className="size-4" />
-                </button>
-            ),
-            cell: ({ row }) => (
-                <div className="min-w-56">
-                    <div className="font-medium">{row.original.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                        {row.original.email ?? 'No email'}
-                    </div>
+    {
+        accessorKey: 'name',
+        header: ({ column }) => (
+            <button
+                className="flex items-center gap-2 hover:text-foreground"
+                onClick={() =>
+                    column.toggleSorting(column.getIsSorted() === 'asc')
+                }
+            >
+                User
+                <ArrowUpDown className="size-4" />
+            </button>
+        ),
+        cell: ({ row }) => (
+            <div className="min-w-56">
+                <div className="font-medium">{row.original.name}</div>
+                <div className="text-sm text-muted-foreground">
+                    {row.original.email ?? 'No email'}
                 </div>
-            ),
-        },
-        {
-            accessorKey: 'username',
-            header: ({ column }) => (
-                <button
-                    className="flex items-center gap-2 hover:text-foreground"
-                    onClick={() =>
-                        column.toggleSorting(column.getIsSorted() === 'asc')
-                    }
-                >
-                    Username
-                    <ArrowUpDown className="size-4" />
-                </button>
-            ),
-            cell: ({ row }) => (
-                <span className="text-muted-foreground">
-                    {row.original.username ?? 'Not set'}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'role',
-            header: ({ column }) => (
-                <button
-                    className="flex items-center gap-2 hover:text-foreground"
-                    onClick={() =>
-                        column.toggleSorting(column.getIsSorted() === 'asc')
-                    }
-                >
-                    Role
-                    <ArrowUpDown className="size-4" />
-                </button>
-            ),
-            cell: ({ row }) => (
-                <RoleDialog
-                    user={row.original}
-                    roles={roles}
-                    onUpdateRole={onUpdateRole}
-                />
-            ),
-        },
-        {
-            accessorKey: 'is_active',
-            header: ({ column }) => (
-                <button
-                    className="flex items-center gap-2 hover:text-foreground"
-                    onClick={() =>
-                        column.toggleSorting(column.getIsSorted() === 'asc')
-                    }
-                >
-                    Status
-                    <ArrowUpDown className="size-4" />
-                </button>
-            ),
-            cell: ({ row }) => (
-                <Badge
-                    variant={row.original.is_active ? 'default' : 'secondary'}
-                    className={cn(
-                        row.original.is_active
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-600'
-                            : 'text-muted-foreground',
-                    )}
-                >
-                    {row.original.is_active ? <CheckCircle2 /> : <XCircle />}
-                    {row.original.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-            ),
-        },
-        {
-            accessorKey: 'updated_at',
-            header: ({ column }) => (
-                <button
-                    className="flex items-center gap-2 hover:text-foreground"
-                    onClick={() =>
-                        column.toggleSorting(column.getIsSorted() === 'asc')
-                    }
-                >
-                    Updated
-                    <ArrowUpDown className="size-4" />
-                </button>
-            ),
-            cell: ({ row }) => <span>{formatDate(row.original.updated_at)}</span>,
-        },
-        {
-            id: 'actions',
-            header: () => <div className="text-right">Actions</div>,
-            cell: ({ row }) => (
-                <div className="text-right">
-                    {row.original.is_current_user ? (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            disabled
-                            className="cursor-not-allowed opacity-60"
-                            title="You cannot deactivate your own account"
-                        >
-                            Protected
-                        </Button>
-                    ) : (
-                        <StatusDialog user={row.original} />
-                    )}
-                </div>
-            ),
-        },
-    ];
+            </div>
+        ),
+    },
+    {
+        accessorKey: 'username',
+        header: ({ column }) => (
+            <button
+                className="flex items-center gap-2 hover:text-foreground"
+                onClick={() =>
+                    column.toggleSorting(column.getIsSorted() === 'asc')
+                }
+            >
+                Username
+                <ArrowUpDown className="size-4" />
+            </button>
+        ),
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {row.original.username ?? 'Not set'}
+            </span>
+        ),
+    },
+    {
+        accessorKey: 'role',
+        header: ({ column }) => (
+            <button
+                className="flex items-center gap-2 hover:text-foreground"
+                onClick={() =>
+                    column.toggleSorting(column.getIsSorted() === 'asc')
+                }
+            >
+                Role
+                <ArrowUpDown className="size-4" />
+            </button>
+        ),
+        cell: ({ row }) => (
+            <RoleDialog
+                user={row.original}
+                roles={roles}
+                onUpdateRole={onUpdateRole}
+            />
+        ),
+    },
+    {
+        accessorKey: 'is_active',
+        header: ({ column }) => (
+            <button
+                className="flex items-center gap-2 hover:text-foreground"
+                onClick={() =>
+                    column.toggleSorting(column.getIsSorted() === 'asc')
+                }
+            >
+                Status
+                <ArrowUpDown className="size-4" />
+            </button>
+        ),
+        cell: ({ row }) => (
+            <Badge
+                variant={row.original.is_active ? 'default' : 'secondary'}
+                className={cn(
+                    row.original.is_active
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-600'
+                        : 'text-muted-foreground',
+                )}
+            >
+                {row.original.is_active ? <CheckCircle2 /> : <XCircle />}
+                {row.original.is_active ? 'Active' : 'Inactive'}
+            </Badge>
+        ),
+    },
+    {
+        accessorKey: 'updated_at',
+        header: ({ column }) => (
+            <button
+                className="flex items-center gap-2 hover:text-foreground"
+                onClick={() =>
+                    column.toggleSorting(column.getIsSorted() === 'asc')
+                }
+            >
+                Updated
+                <ArrowUpDown className="size-4" />
+            </button>
+        ),
+        cell: ({ row }) => <span>{formatDate(row.original.updated_at)}</span>,
+    },
+    {
+        id: 'actions',
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => (
+            <div className="text-right">
+                {row.original.is_current_user ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled
+                        className="cursor-not-allowed opacity-60"
+                        title="You cannot deactivate your own account"
+                    >
+                        Protected
+                    </Button>
+                ) : (
+                    <StatusDialog user={row.original} />
+                )}
+            </div>
+        ),
+    },
+];
 
 // Memoized table header component
 const UsersTableHeader = memo(
@@ -234,9 +228,9 @@ const UsersTableHeader = memo(
                             {header.isPlaceholder
                                 ? null
                                 : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext(),
-                                )}
+                                      header.column.columnDef.header,
+                                      header.getContext(),
+                                  )}
                         </TableHead>
                     ))}
                 </TableRow>
@@ -365,19 +359,19 @@ export default function UsersIndex({
     );
 
     // Client-side callbacks for role and status updates
-   const handleUpdateRole = useCallback(
-    (userId: number, roleName: string | null) => {
-        router.patch(
-            UserManagementController.updateRole(userId).url,
-            { role: roleName },
-            {
-                preserveScroll: true,
-                preserveState: false, 
-            },
-        );
-    },
-    [],
-);
+    const handleUpdateRole = useCallback(
+        (userId: number, roleName: string | null) => {
+            router.patch(
+                UserManagementController.updateRole(userId).url,
+                { role: roleName },
+                {
+                    preserveScroll: true,
+                    preserveState: false,
+                },
+            );
+        },
+        [],
+    );
 
     const handleToggleStatus = useCallback(
         (userId: number, isActive: boolean) => {

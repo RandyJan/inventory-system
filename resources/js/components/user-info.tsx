@@ -29,7 +29,7 @@ export function UserInfo({
                     </span>
                 )}
                 {roles.length > 0 && (
-                    <span className="truncate text-xs capitalize text-muted-foreground">
+                    <span className="truncate text-xs text-muted-foreground capitalize">
                         {roles.join(', ')}
                     </span>
                 )}

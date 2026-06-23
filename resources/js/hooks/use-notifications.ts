@@ -24,7 +24,10 @@ function normalizeNotification(notification: any): Notification {
         new_role: payload?.new_role ?? null,
         changed_by: payload?.changed_by ?? '',
         read_at: notification?.read_at ?? null,
-        created_at: notification?.created_at ?? payload?.changed_at ?? new Date().toISOString(),
+        created_at:
+            notification?.created_at ??
+            payload?.changed_at ??
+            new Date().toISOString(),
     };
 }
 
@@ -42,7 +45,9 @@ export function useNotifications(userId?: number) {
         fetch('/notifications/latest')
             .then((res) => res.json())
             .then((data) => {
-                setNotifications(data.map((n: any) => normalizeNotification(n)));
+                setNotifications(
+                    data.map((n: any) => normalizeNotification(n)),
+                );
             })
             .catch((error) => {
                 console.error('Failed to load notifications:', error);
@@ -73,7 +78,7 @@ export function useNotifications(userId?: number) {
         // Cleanup
         return () => {
             window.notificationUpdates = window.notificationUpdates?.filter(
-                (cb) => cb !== handleNewNotification
+                (cb) => cb !== handleNewNotification,
             );
         };
     }, [loadNotifications, userId]);

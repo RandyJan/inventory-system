@@ -1,17 +1,21 @@
 import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type ReactNode, useEffect, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
-import { Toaster, toast } from "sonner";
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
+import { type ReactNode, useEffect, useRef } from 'react';
+import { Toaster, toast } from 'sonner';
 
 interface AppLayoutProps {
     children: ReactNode;
     breadcrumbs?: BreadcrumbItem[];
 }
 
-export default function AppLayout({ children, breadcrumbs, ...props }: AppLayoutProps) {
+export default function AppLayout({
+    children,
+    breadcrumbs,
+    ...props
+}: AppLayoutProps) {
     const { props: pageProps } = usePage();
     const userId = (pageProps.auth as any)?.user?.id;
     const lastFlashMessage = useRef<string | null>(null);
@@ -28,7 +32,10 @@ export default function AppLayout({ children, breadcrumbs, ...props }: AppLayout
             new_role: payload?.new_role ?? null,
             changed_by: payload?.changed_by ?? '',
             read_at: notification?.read_at ?? null,
-            created_at: notification?.created_at ?? payload?.changed_at ?? new Date().toISOString(),
+            created_at:
+                notification?.created_at ??
+                payload?.changed_at ??
+                new Date().toISOString(),
         };
     };
 
@@ -74,10 +81,14 @@ export default function AppLayout({ children, breadcrumbs, ...props }: AppLayout
                 echoInstance = new Echo({
                     broadcaster: 'reverb',
                     key: import.meta.env.VITE_REVERB_APP_KEY || 'local',
-                    wsHost: import.meta.env.VITE_REVERB_HOST || window.location.hostname,
+                    wsHost:
+                        import.meta.env.VITE_REVERB_HOST ||
+                        window.location.hostname,
                     wsPort: import.meta.env.VITE_REVERB_PORT
                         ? Number(import.meta.env.VITE_REVERB_PORT)
-                        : (import.meta.env.VITE_REVERB_SCHEME === 'https' ? 443 : 80),
+                        : import.meta.env.VITE_REVERB_SCHEME === 'https'
+                          ? 443
+                          : 80,
                     wssPort: import.meta.env.VITE_REVERB_PORT
                         ? Number(import.meta.env.VITE_REVERB_PORT)
                         : 443,
@@ -104,20 +115,31 @@ export default function AppLayout({ children, breadcrumbs, ...props }: AppLayout
             }
 
             // Listen for real-time notifications
-            const channel = echoInstance.private(`user.notifications.${userId}`);
+            const channel = echoInstance.private(
+                `user.notifications.${userId}`,
+            );
 
             channel.notification((notification: any) => {
-                console.log('📬 Real-time notification received:', notification);
+                console.log(
+                    '📬 Real-time notification received:',
+                    notification,
+                );
 
                 const formatted = normalizeNotification(notification);
 
                 // Notify all registered listeners (e.g., useNotifications hook)
-                if (window.notificationUpdates && Array.isArray(window.notificationUpdates)) {
+                if (
+                    window.notificationUpdates &&
+                    Array.isArray(window.notificationUpdates)
+                ) {
                     window.notificationUpdates.forEach((callback) => {
                         try {
                             callback(formatted);
                         } catch (error) {
-                            console.error('Error in notification callback:', error);
+                            console.error(
+                                'Error in notification callback:',
+                                error,
+                            );
                         }
                     });
                 }
@@ -127,9 +149,15 @@ export default function AppLayout({ children, breadcrumbs, ...props }: AppLayout
                     toast.info('Role Updated', {
                         id: formatted.id,
                         description: [
-                            formatted.old_role ? `from ${formatted.old_role}` : null,
-                            formatted.new_role ? `to ${formatted.new_role}` : null,
-                            formatted.changed_by ? `by ${formatted.changed_by}` : null,
+                            formatted.old_role
+                                ? `from ${formatted.old_role}`
+                                : null,
+                            formatted.new_role
+                                ? `to ${formatted.new_role}`
+                                : null,
+                            formatted.changed_by
+                                ? `by ${formatted.changed_by}`
+                                : null,
                         ]
                             .filter(Boolean)
                             .join(' '),
@@ -161,7 +189,6 @@ export default function AppLayout({ children, breadcrumbs, ...props }: AppLayout
 
     return (
         <AppLayoutTemplate breadcrumbs={breadcrumbs} {...props}>
-            
             {/* Optional: remove this if using toast only */}
             {pageProps.flash?.success && (
                 <div className="mx-4 mt-4 rounded-md bg-emerald-500 px-4 py-3 text-sm text-white shadow">
@@ -175,7 +202,7 @@ export default function AppLayout({ children, breadcrumbs, ...props }: AppLayout
                 </div>
             )}
 
-            <Toaster 
+            <Toaster
                 position="top-right"
                 theme="system"
                 richColors

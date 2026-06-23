@@ -37,7 +37,7 @@ export default function Profile({
                     <Card className="border-border">
                         <CardContent className="grid gap-4 pt-6">
                             <div className="grid gap-1">
-                                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                <p className="text-xs tracking-wide text-muted-foreground uppercase">
                                     Name
                                 </p>
                                 <p className="text-sm font-medium text-foreground">
@@ -46,7 +46,7 @@ export default function Profile({
                             </div>
 
                             <div className="grid gap-1">
-                                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                <p className="text-xs tracking-wide text-muted-foreground uppercase">
                                     Email Address
                                 </p>
                                 <p className="text-sm font-medium text-foreground">
@@ -55,11 +55,13 @@ export default function Profile({
                             </div>
 
                             <div className="grid gap-1">
-                                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                <p className="text-xs tracking-wide text-muted-foreground uppercase">
                                     Account Status
                                 </p>
                                 <p className="text-sm font-medium text-foreground">
-                                    {auth.user.is_active === false ? 'Inactive' : 'Active'}
+                                    {auth.user.is_active === false
+                                        ? 'Inactive'
+                                        : 'Active'}
                                 </p>
                             </div>
                         </CardContent>

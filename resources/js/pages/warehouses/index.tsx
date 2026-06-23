@@ -34,9 +34,9 @@ import {
 } from '@/routes/warehouse-locations';
 import { update as updateLocationItems } from '@/routes/warehouse-locations/items';
 import {
-    index as warehousesIndex,
     store as storeWarehouse,
     update as updateWarehouse,
+    index as warehousesIndex,
 } from '@/routes/warehouses';
 import { update as updateWarehousePermissions } from '@/routes/warehouses/permissions';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -365,8 +365,7 @@ export default function WarehousesIndex({
                                                             {
                                                                 location.used_capacity
                                                             }
-                                                            /
-                                                            {location.capacity}
+                                                            /{location.capacity}
                                                         </span>
                                                     </div>
                                                     <Progress
@@ -920,13 +919,11 @@ function WarehousePermissionsForm({
                                             <Checkbox
                                                 name={`permissions[${index}][${flag}]`}
                                                 value="1"
-                                                defaultChecked={
-                                                    Boolean(
-                                                        permission?.[
-                                                            flag as keyof typeof permission
-                                                        ],
-                                                    )
-                                                }
+                                                defaultChecked={Boolean(
+                                                    permission?.[
+                                                        flag as keyof typeof permission
+                                                    ],
+                                                )}
                                             />
                                             {flag.replace('can_', '')}
                                         </Label>

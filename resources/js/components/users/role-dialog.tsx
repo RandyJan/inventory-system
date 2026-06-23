@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -7,7 +8,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -16,8 +16,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { PencilLine, Loader2, UserCog } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { Loader2, PencilLine, UserCog } from 'lucide-react';
+import { useCallback, useState } from 'react';
 
 interface Props {
     user: any;
@@ -43,10 +43,10 @@ export default function RoleDialog({ user, roles, onUpdateRole }: Props) {
         if (!value || !hasChanges) return;
 
         setProcessing(true);
-        // Assuming onUpdateRole might be an async operation in the future, 
+        // Assuming onUpdateRole might be an async operation in the future,
         // you can await it here if you update the prop signature.
         await onUpdateRole(user.id, value);
-        
+
         setProcessing(false);
         setOpen(false);
     }, [user.id, value, hasChanges, onUpdateRole]);
@@ -54,17 +54,19 @@ export default function RoleDialog({ user, roles, onUpdateRole }: Props) {
     return (
         <Dialog open={open} onOpenChange={handleOpen}>
             <DialogTrigger asChild>
-                <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className={`gap-2 ${!user.role ? 'text-muted-foreground border-dashed' : ''}`}
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className={`gap-2 ${!user.role ? 'border-dashed text-muted-foreground' : ''}`}
                 >
                     <PencilLine className="size-4" />
-                    <span className="capitalize">{user.role ?? 'Assign role'}</span>
+                    <span className="capitalize">
+                        {user.role ?? 'Assign role'}
+                    </span>
                 </Button>
             </DialogTrigger>
 
-           <DialogContent className="w-[90vw] sm:w-[50vw] lg:w-[25vw] max-w-none">
+            <DialogContent className="w-[90vw] max-w-none sm:w-[50vw] lg:w-[25vw]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <UserCog className="size-5 text-muted-foreground" />
@@ -74,24 +76,35 @@ export default function RoleDialog({ user, roles, onUpdateRole }: Props) {
                         Update the role and access permissions for{' '}
                         <strong className="font-medium text-foreground">
                             {user.name || 'this user'}
-                        </strong>.
+                        </strong>
+                        .
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="role-select" className="text-right text-muted-foreground">
+                        <Label
+                            htmlFor="role-select"
+                            className="text-right text-muted-foreground"
+                        >
                             Role
                         </Label>
                         <div className="col-span-3">
-                            <Select value={value} onValueChange={setValue} disabled={processing}>
-                                <SelectTrigger id="role-select" className="w-full capitalize">
+                            <Select
+                                value={value}
+                                onValueChange={setValue}
+                                disabled={processing}
+                            >
+                                <SelectTrigger
+                                    id="role-select"
+                                    className="w-full capitalize"
+                                >
                                     <SelectValue placeholder="Select a role..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {roles.map((role) => (
-                                        <SelectItem 
-                                            key={role.id} 
+                                        <SelectItem
+                                            key={role.id}
                                             value={role.name}
                                             className="capitalize"
                                         >
@@ -105,15 +118,15 @@ export default function RoleDialog({ user, roles, onUpdateRole }: Props) {
                 </div>
 
                 <DialogFooter>
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         onClick={() => setOpen(false)}
                         disabled={processing}
                     >
                         Cancel
                     </Button>
-                    <Button 
-                        onClick={handleSave} 
+                    <Button
+                        onClick={handleSave}
                         disabled={processing || !hasChanges}
                         className="min-w-[120px]"
                     >

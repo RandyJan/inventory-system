@@ -28,7 +28,9 @@ export default function Password() {
                     <Card className="border-border">
                         <CardContent className="pt-6">
                             <p className="text-sm text-muted-foreground">
-                                Account passwords are centrally managed. Contact your system administrator if you need credential support.
+                                Account passwords are centrally managed. Contact
+                                your system administrator if you need credential
+                                support.
                             </p>
                         </CardContent>
                     </Card>

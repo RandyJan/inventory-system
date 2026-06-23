@@ -1,3 +1,5 @@
+import UserManagementController from '@/actions/App/Http/Controllers/UserManagementController';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -7,10 +9,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { useState, useCallback } from 'react';
 import { router } from '@inertiajs/react';
-import UserManagementController from '@/actions/App/Http/Controllers/UserManagementController';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 export default function StatusDialog({ user }: { user: any }) {
@@ -26,21 +26,23 @@ export default function StatusDialog({ user }: { user: any }) {
             ? UserManagementController.deactivate(user.id)
             : UserManagementController.activate(user.id);
 
-        router.patch(action.url, {}, {
-            preserveScroll: true,
-            preserveState: false,
-            onSuccess: () => {
-                toast.success(
-                    isDeactivate
-                        ? 'User deactivated'
-                        : 'User activated'
-                );
+        router.patch(
+            action.url,
+            {},
+            {
+                preserveScroll: true,
+                preserveState: false,
+                onSuccess: () => {
+                    toast.success(
+                        isDeactivate ? 'User deactivated' : 'User activated',
+                    );
+                },
+                onFinish: () => {
+                    setProcessing(false);
+                    setOpen(false);
+                },
             },
-            onFinish: () => {
-                setProcessing(false);
-                setOpen(false);
-            }
-        });
+        );
     }, [user.id, isDeactivate]);
 
     return (

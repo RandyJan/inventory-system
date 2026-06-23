@@ -43,7 +43,14 @@ import AppLayout from '@/layouts/app-layout';
 import { index as permissionsIndex } from '@/routes/permissions';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { KeyRound, Pencil, Plus, ShieldCheck, Trash2, Users } from 'lucide-react';
+import {
+    KeyRound,
+    Pencil,
+    Plus,
+    ShieldCheck,
+    Trash2,
+    Users,
+} from 'lucide-react';
 import { FormEvent, type ReactNode, useMemo, useState } from 'react';
 
 type ManagedPermission = {
@@ -79,7 +86,9 @@ export default function PermissionsIndex({
     const canUpdate = grantedPermissions.has('permissions.update');
     const canDelete = grantedPermissions.has('permissions.delete');
     const summary = useMemo(() => {
-        const modules = new Set(permissions.map((permission) => permission.module));
+        const modules = new Set(
+            permissions.map((permission) => permission.module),
+        );
 
         return {
             permissions: permissions.length,
@@ -346,10 +355,13 @@ function DeletePermissionButton({
     function deletePermission() {
         setProcessing(true);
 
-        router.delete(PermissionManagementController.destroy(permission.id).url, {
-            preserveScroll: true,
-            onFinish: () => setProcessing(false),
-        });
+        router.delete(
+            PermissionManagementController.destroy(permission.id).url,
+            {
+                preserveScroll: true,
+                onFinish: () => setProcessing(false),
+            },
+        );
     }
 
     return (

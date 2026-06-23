@@ -14,10 +14,18 @@ export default function DebugNotifications() {
 
         // Check Reverb environment variables
         logs.push(`✓ User ID: ${userId}`);
-        logs.push(`✓ VITE_REVERB_HOST: ${import.meta.env.VITE_REVERB_HOST || 'not set'}`);
-        logs.push(`✓ VITE_REVERB_PORT: ${import.meta.env.VITE_REVERB_PORT || 'not set'}`);
-        logs.push(`✓ VITE_REVERB_SCHEME: ${import.meta.env.VITE_REVERB_SCHEME || 'not set'}`);
-        logs.push(`✓ VITE_REVERB_APP_KEY: ${import.meta.env.VITE_REVERB_APP_KEY || 'not set'}`);
+        logs.push(
+            `✓ VITE_REVERB_HOST: ${import.meta.env.VITE_REVERB_HOST || 'not set'}`,
+        );
+        logs.push(
+            `✓ VITE_REVERB_PORT: ${import.meta.env.VITE_REVERB_PORT || 'not set'}`,
+        );
+        logs.push(
+            `✓ VITE_REVERB_SCHEME: ${import.meta.env.VITE_REVERB_SCHEME || 'not set'}`,
+        );
+        logs.push(
+            `✓ VITE_REVERB_APP_KEY: ${import.meta.env.VITE_REVERB_APP_KEY || 'not set'}`,
+        );
 
         setLogs(logs);
 
@@ -31,7 +39,7 @@ export default function DebugNotifications() {
             try {
                 logs.push('');
                 logs.push('--- Echo Connection Test ---');
-                
+
                 // Simulate loading the hook
                 const script = document.createElement('script');
                 script.type = 'module';
@@ -85,7 +93,10 @@ export default function DebugNotifications() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-CSRF-TOKEN':
+                        document
+                            .querySelector('meta[name="csrf-token"]')
+                            ?.getAttribute('content') || '',
                 },
             });
 
@@ -106,22 +117,38 @@ export default function DebugNotifications() {
     };
 
     return (
-        <AppLayout breadcrumbs={[{ label: 'Debug', href: '#' }, { label: 'Notifications', href: '#' }]}>
+        <AppLayout
+            breadcrumbs={[
+                { label: 'Debug', href: '#' },
+                { label: 'Notifications', href: '#' },
+            ]}
+        >
             <div className="space-y-6 p-6">
                 <div className="rounded-lg border border-border bg-card p-6">
-                    <h1 className="text-2xl font-bold mb-4">Reverb Notification Debugger</h1>
+                    <h1 className="mb-4 text-2xl font-bold">
+                        Reverb Notification Debugger
+                    </h1>
 
                     <div className="space-y-4">
                         <div className="rounded-md bg-blue-50 p-4 dark:bg-blue-950/30">
-                            <h2 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Status</h2>
-                            <p className="text-sm text-blue-800 dark:text-blue-200">{status}</p>
+                            <h2 className="mb-2 font-semibold text-blue-900 dark:text-blue-100">
+                                Status
+                            </h2>
+                            <p className="text-sm text-blue-800 dark:text-blue-200">
+                                {status}
+                            </p>
                         </div>
 
                         <div className="rounded-md bg-muted p-4">
-                            <h2 className="font-semibold mb-2">Configuration</h2>
-                            <pre className="text-xs overflow-auto">
+                            <h2 className="mb-2 font-semibold">
+                                Configuration
+                            </h2>
+                            <pre className="overflow-auto text-xs">
                                 {logs.map((log, i) => (
-                                    <div key={i} className="font-mono text-muted-foreground">
+                                    <div
+                                        key={i}
+                                        className="font-mono text-muted-foreground"
+                                    >
                                         {log}
                                     </div>
                                 ))}
@@ -135,10 +162,19 @@ export default function DebugNotifications() {
                             Send Test Notification
                         </button>
 
-                        <div className="text-xs text-muted-foreground space-y-1">
-                            <p>ℹ️ Reverb WebSocket server should be running on port 8080</p>
-                            <p>ℹ️ Check browser DevTools Console for WebSocket connection logs</p>
-                            <p>ℹ️ Look for "ws://localhost:8080" connection messages</p>
+                        <div className="space-y-1 text-xs text-muted-foreground">
+                            <p>
+                                ℹ️ Reverb WebSocket server should be running on
+                                port 8080
+                            </p>
+                            <p>
+                                ℹ️ Check browser DevTools Console for WebSocket
+                                connection logs
+                            </p>
+                            <p>
+                                ℹ️ Look for "ws://localhost:8080" connection
+                                messages
+                            </p>
                         </div>
                     </div>
                 </div>

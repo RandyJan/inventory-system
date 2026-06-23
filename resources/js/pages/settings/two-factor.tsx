@@ -63,14 +63,24 @@ export default function TwoFactor({
                                 <Shield className="size-4" /> Security Overview
                             </CardTitle>
                             <CardDescription>
-                                Two-factor authentication adds a second verification step during login.
+                                Two-factor authentication adds a second
+                                verification step during login.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="grid gap-3 text-sm text-muted-foreground">
-                                <p>1. Enable 2FA and scan the QR code with your authenticator app.</p>
-                                <p>2. Confirm setup with a 6-digit code from your app.</p>
-                                <p>3. Save your recovery codes in a secure password manager.</p>
+                                <p>
+                                    1. Enable 2FA and scan the QR code with your
+                                    authenticator app.
+                                </p>
+                                <p>
+                                    2. Confirm setup with a 6-digit code from
+                                    your app.
+                                </p>
+                                <p>
+                                    3. Save your recovery codes in a secure
+                                    password manager.
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
@@ -83,14 +93,17 @@ export default function TwoFactor({
                                     Two-Factor Authentication is Enabled
                                 </CardTitle>
                                 <CardDescription>
-                                    Your account now requires a one-time code from your authenticator app.
+                                    Your account now requires a one-time code
+                                    from your authenticator app.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <Badge variant="default">Enabled</Badge>
 
                                 <p className="text-sm text-muted-foreground">
-                                    Keep your recovery codes safe. They are required if your phone is lost or unavailable.
+                                    Keep your recovery codes safe. They are
+                                    required if your phone is lost or
+                                    unavailable.
                                 </p>
 
                                 <TwoFactorRecoveryCodes
@@ -122,19 +135,23 @@ export default function TwoFactor({
                                     Two-Factor Authentication is Disabled
                                 </CardTitle>
                                 <CardDescription>
-                                    Enable 2FA to require a verification code when signing in.
+                                    Enable 2FA to require a verification code
+                                    when signing in.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <Badge variant="destructive">Disabled</Badge>
                                 <p className="text-sm text-muted-foreground">
-                                    Recommended for administrators and ticket handlers to reduce account takeover risk.
+                                    Recommended for administrators and ticket
+                                    handlers to reduce account takeover risk.
                                 </p>
 
                                 <div>
                                     {hasSetupData ? (
                                         <Button
-                                            onClick={() => setShowSetupModal(true)}
+                                            onClick={() =>
+                                                setShowSetupModal(true)
+                                            }
                                         >
                                             <ShieldCheck />
                                             Continue Setup

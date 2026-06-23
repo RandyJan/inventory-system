@@ -34,14 +34,18 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-96 p-0">
                 <div className="border-b border-border px-4 py-3">
-                    <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b border-border px-4 py-3">
                         <h3 className="font-semibold">Notifications</h3>
 
                         <button
                             onClick={() =>
-                                router.post('/notifications/read-all', {}, {
-                                    preserveScroll: true,
-                                })
+                                router.post(
+                                    '/notifications/read-all',
+                                    {},
+                                    {
+                                        preserveScroll: true,
+                                    },
+                                )
                             }
                             className="text-xs text-primary hover:underline"
                         >
@@ -84,9 +88,13 @@ function NotificationItem({ notification }: { notification: Notification }) {
             <div
                 onClick={() => {
                     if (!notification.read_at) {
-                        router.post(`/notifications/${notification.id}/read`, {}, {
-                            preserveScroll: true,
-                        });
+                        router.post(
+                            `/notifications/${notification.id}/read`,
+                            {},
+                            {
+                                preserveScroll: true,
+                            },
+                        );
                     }
                 }}
                 className={cn(

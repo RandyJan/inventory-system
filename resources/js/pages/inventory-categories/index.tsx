@@ -10,7 +10,6 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
     Table,
     TableBody,
@@ -19,14 +18,14 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import {
     index as categoriesIndex,
     store,
     update,
 } from '@/routes/inventory-categories';
-import { BreadcrumbItem } from '@/types';
-import { type SharedData } from '@/types';
+import { BreadcrumbItem, type SharedData } from '@/types';
 import { Form, Head, usePage } from '@inertiajs/react';
 import { BarChart3, Boxes, FolderTree, Save, Tags } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
@@ -375,7 +374,9 @@ function InlineCategoryForm({
                     <input
                         type="hidden"
                         name="parent_id"
-                        value={'parent_id' in category ? category.parent_id : ''}
+                        value={
+                            'parent_id' in category ? category.parent_id : ''
+                        }
                     />
                     <div className="flex flex-col gap-2 lg:flex-row">
                         <Input

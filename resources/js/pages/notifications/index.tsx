@@ -3,10 +3,9 @@ import { Button, buttonVariants } from '@/components/ui/button';
 
 import {
     Card,
-    CardContent,
+    CardDescription,
     CardHeader,
     CardTitle,
-    CardDescription,
 } from '@/components/ui/card';
 
 import {
@@ -54,7 +53,7 @@ import {
     type SortingState,
 } from '@tanstack/react-table';
 
-import { ArrowUpDown, Bell } from 'lucide-react';
+import { ArrowUpDown } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 
 type Notification = {
@@ -70,9 +69,7 @@ type Notification = {
 export default function NotificationsPage({ notifications, filters }: any) {
     const [sorting, setSorting] = useState<SortingState>([]);
     const [search, setSearch] = useState(filters?.search ?? '');
-    const [selectedType, setSelectedType] = useState(
-        filters?.type ?? 'all'
-    );
+    const [selectedType, setSelectedType] = useState(filters?.type ?? 'all');
     const [selected, setSelected] = useState<Notification | null>(null);
 
     const data = useMemo(() => notifications.data ?? [], [notifications]);
@@ -98,10 +95,8 @@ export default function NotificationsPage({ notifications, filters }: any) {
                 const n = info.row.original;
 
                 return (
-                    <div className="space-y-1 min-w-72">
-                        <p className="font-medium">
-                            {getTitle(n)}
-                        </p>
+                    <div className="min-w-72 space-y-1">
+                        <p className="font-medium">{getTitle(n)}</p>
                         <p className="text-sm text-muted-foreground">
                             {getDescription(n)}
                         </p>
@@ -113,9 +108,7 @@ export default function NotificationsPage({ notifications, filters }: any) {
         columnHelper.accessor('type', {
             header: 'Type',
             cell: (info) => (
-                <Badge variant="outline">
-                    {formatType(info.getValue())}
-                </Badge>
+                <Badge variant="outline">{formatType(info.getValue())}</Badge>
             ),
         }),
 
@@ -124,9 +117,7 @@ export default function NotificationsPage({ notifications, filters }: any) {
                 <button
                     className="flex items-center gap-2"
                     onClick={() =>
-                        column.toggleSorting(
-                            column.getIsSorted() === 'asc'
-                        )
+                        column.toggleSorting(column.getIsSorted() === 'asc')
                     }
                 >
                     Date
@@ -147,9 +138,7 @@ export default function NotificationsPage({ notifications, filters }: any) {
                 info.row.original.read_at ? (
                     <Badge variant="secondary">Read</Badge>
                 ) : (
-                    <Badge className="bg-blue-600 text-white">
-                        New
-                    </Badge>
+                    <Badge className="bg-blue-600 text-white">New</Badge>
                 ),
         }),
 
@@ -175,9 +164,7 @@ export default function NotificationsPage({ notifications, filters }: any) {
 
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>
-                                Notification Details
-                            </DialogTitle>
+                            <DialogTitle>Notification Details</DialogTitle>
                             <DialogDescription>
                                 {getTitle(info.row.original)}
                             </DialogDescription>
@@ -194,9 +181,7 @@ export default function NotificationsPage({ notifications, filters }: any) {
                             </p>
                             <p>
                                 <b>Date:</b>{' '}
-                                {formatDateTime(
-                                    info.row.original.created_at
-                                )}
+                                {formatDateTime(info.row.original.created_at)}
                             </p>
                         </div>
 
@@ -229,7 +214,7 @@ export default function NotificationsPage({ notifications, filters }: any) {
                 search: search || undefined,
                 type: selectedType === 'all' ? undefined : selectedType,
             },
-            { preserveState: true, replace: true }
+            { preserveState: true, replace: true },
         );
     }
 
@@ -238,9 +223,8 @@ export default function NotificationsPage({ notifications, filters }: any) {
             <Head title="Notifications" />
 
             <div className="flex flex-col gap-4 p-4">
-
                 {/* Header */}
-                <div className="flex justify-between items-end">
+                <div className="flex items-end justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold">
                             Notifications
@@ -254,9 +238,13 @@ export default function NotificationsPage({ notifications, filters }: any) {
                         <Button
                             variant="outline"
                             onClick={() =>
-                                router.post('/notifications/read-all', {}, {
-                                    preserveScroll: true,
-                                })
+                                router.post(
+                                    '/notifications/read-all',
+                                    {},
+                                    {
+                                        preserveScroll: true,
+                                    },
+                                )
                             }
                         >
                             Mark all as read
@@ -314,7 +302,7 @@ export default function NotificationsPage({ notifications, filters }: any) {
                 </div>
 
                 {/* Table */}
-                <div className="border rounded-lg overflow-hidden">
+                <div className="overflow-hidden rounded-lg border">
                     <Table>
                         <TableHeader>
                             {table.getHeaderGroups().map((hg) => (
@@ -323,7 +311,7 @@ export default function NotificationsPage({ notifications, filters }: any) {
                                         <TableHead key={h.id}>
                                             {flexRender(
                                                 h.column.columnDef.header,
-                                                h.getContext()
+                                                h.getContext(),
                                             )}
                                         </TableHead>
                                     ))}
@@ -337,22 +325,26 @@ export default function NotificationsPage({ notifications, filters }: any) {
                                     key={row.id}
                                     onClick={() => {
                                         if (!row.original.read_at) {
-                                            router.post(`/notifications/${row.original.id}/read`, {}, {
-                                                preserveScroll: true,
-                                            });
+                                            router.post(
+                                                `/notifications/${row.original.id}/read`,
+                                                {},
+                                                {
+                                                    preserveScroll: true,
+                                                },
+                                            );
                                         }
                                     }}
                                     className={cn(
                                         'cursor-pointer',
                                         !row.original.read_at &&
-                                        'bg-blue-50 dark:bg-blue-950/30'
+                                            'bg-blue-50 dark:bg-blue-950/30',
                                     )}
                                 >
                                     {row.getVisibleCells().map((cell) => (
                                         <TableCell key={cell.id}>
                                             {flexRender(
                                                 cell.column.columnDef.cell,
-                                                cell.getContext()
+                                                cell.getContext(),
                                             )}
                                         </TableCell>
                                     ))}
@@ -365,7 +357,8 @@ export default function NotificationsPage({ notifications, filters }: any) {
                 {/* Pagination */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
-                        Showing {notifications.from ?? 0} to {notifications.to ?? 0} of {notifications.total}
+                        Showing {notifications.from ?? 0} to{' '}
+                        {notifications.to ?? 0} of {notifications.total}
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -377,11 +370,15 @@ export default function NotificationsPage({ notifications, filters }: any) {
                                     preserveScroll
                                     className={cn(
                                         buttonVariants({
-                                            variant: link.active ? 'default' : 'outline',
+                                            variant: link.active
+                                                ? 'default'
+                                                : 'outline',
                                             size: 'sm',
-                                        })
+                                        }),
                                     )}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                    dangerouslySetInnerHTML={{
+                                        __html: link.label,
+                                    }}
                                 />
                             ) : (
                                 <span
@@ -391,11 +388,13 @@ export default function NotificationsPage({ notifications, filters }: any) {
                                             variant: 'outline',
                                             size: 'sm',
                                         }),
-                                        'pointer-events-none opacity-50'
+                                        'pointer-events-none opacity-50',
                                     )}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                    dangerouslySetInnerHTML={{
+                                        __html: link.label,
+                                    }}
                                 />
-                            )
+                            ),
                         )}
                     </div>
                 </div>
@@ -411,8 +410,9 @@ function getTitle(n: any) {
 
 function getDescription(n: any) {
     if (n.type === 'role_changed') {
-        return `Changed from ${n.old_role ?? 'none'} to ${n.new_role ?? 'none'
-            } by ${n.changed_by}`;
+        return `Changed from ${n.old_role ?? 'none'} to ${
+            n.new_role ?? 'none'
+        } by ${n.changed_by}`;
     }
     return 'System notification';
 }

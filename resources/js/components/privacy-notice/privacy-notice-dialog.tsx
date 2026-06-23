@@ -1,3 +1,4 @@
+import AppLogoIcon from '@/components/app-logo-icon';
 import PrivacyNoticeContent from '@/components/privacy-notice/privacy-notice-content';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,8 +10,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import AppLogoIcon from '@/components/app-logo-icon';
-import { X } from 'lucide-react';
 
 interface PrivacyNoticeDialogProps {
     readonly trigger?: React.ReactNode;
@@ -43,8 +42,8 @@ export default function PrivacyNoticeDialog({
                     trigger
                 )}
             </DialogTrigger>
-            <DialogContent className="!h-[75vh] !w-[75vw] !max-w-[75vw] !max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-950">
-                <DialogHeader className="flex flex-row items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+            <DialogContent className="!h-[75vh] !max-h-[95vh] !w-[75vw] !max-w-[75vw] overflow-y-auto bg-white dark:bg-slate-950">
+                <DialogHeader className="flex flex-row items-start justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
                     <div className="flex items-center gap-3">
                         <AppLogoIcon className="size-8 h-8 w-8 fill-current text-blue-800 dark:text-white" />
                         <div>
@@ -65,14 +64,12 @@ export default function PrivacyNoticeDialog({
                     <PrivacyNoticeContent compact />
                 </div>
 
-                <div className="flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-4">
+                <div className="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
                     <DialogClose asChild>
                         <Button variant="outline">Close</Button>
                     </DialogClose>
                     <DialogClose asChild>
-                        <Button onClick={handleAccept}>
-                            I Accept
-                        </Button>
+                        <Button onClick={handleAccept}>I Accept</Button>
                     </DialogClose>
                 </div>
             </DialogContent>

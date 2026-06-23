@@ -1,15 +1,15 @@
-import React from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
-    useReactTable,
+    flexRender,
     getCoreRowModel,
     getFilteredRowModel,
-    getSortedRowModel,
     getPaginationRowModel,
-    flexRender,
+    getSortedRowModel,
+    useReactTable,
 } from '@tanstack/react-table';
-import type { ColumnDef } from '@tanstack/react-table';
-import Toolbar from './Toolbar';
+import React from 'react';
 import Pagination from './Pagination';
+import Toolbar from './Toolbar';
 import type { DataTableProps } from './types';
 
 function classNames(...args: Array<string | undefined | false>) {
@@ -32,26 +32,40 @@ export default function DataTable<TData>({
     serverSide = false,
 }: DataTableProps<TData>) {
     const [globalFilter, setGlobalFilter] = React.useState('');
-    const [rowSelection, setRowSelection] = React.useState<Record<string, boolean>>({});
-    const [columnVisibility, setColumnVisibility] = React.useState<Record<string, boolean>>({});
+    const [rowSelection, setRowSelection] = React.useState<
+        Record<string, boolean>
+    >({});
+    const [columnVisibility, setColumnVisibility] = React.useState<
+        Record<string, boolean>
+    >({});
 
     // prepend selection column
-    const selectionColumn: ColumnDef<TData> = React.useMemo(() => ({
-        id: 'select',
-        header: ({ table }) => (
-            <input
-                type="checkbox"
-                checked={table.getIsAllPageRowsSelected()}
-                onChange={table.getToggleAllPageRowsSelectedHandler()}
-            />
-        ),
-        cell: ({ row }) => (
-            <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />
-        ),
-        size: 32,
-    }), []);
+    const selectionColumn: ColumnDef<TData> = React.useMemo(
+        () => ({
+            id: 'select',
+            header: ({ table }) => (
+                <input
+                    type="checkbox"
+                    checked={table.getIsAllPageRowsSelected()}
+                    onChange={table.getToggleAllPageRowsSelectedHandler()}
+                />
+            ),
+            cell: ({ row }) => (
+                <input
+                    type="checkbox"
+                    checked={row.getIsSelected()}
+                    onChange={row.getToggleSelectedHandler()}
+                />
+            ),
+            size: 32,
+        }),
+        [],
+    );
 
-    const cols = React.useMemo(() => [selectionColumn, ...(columns as ColumnDef<TData>[])], [columns, selectionColumn]);
+    const cols = React.useMemo(
+        () => [selectionColumn, ...(columns as ColumnDef<TData>[])],
+        [columns, selectionColumn],
+    );
 
     const table = useReactTable({
         data: data ?? [],
@@ -73,12 +87,17 @@ export default function DataTable<TData>({
         getSortedRowModel: getSortedRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         manualPagination: serverSide,
-        pageCount: serverSide && total ? Math.max(1, Math.ceil(total / pageSize)) : undefined,
+        pageCount:
+            serverSide && total
+                ? Math.max(1, Math.ceil(total / pageSize))
+                : undefined,
     });
 
     // notify parent about selection changes (emit selected row IDs)
     React.useEffect(() => {
-        const selected = Object.keys(rowSelection).filter((k) => rowSelection[k]);
+        const selected = Object.keys(rowSelection).filter(
+            (k) => rowSelection[k],
+        );
         onRowSelectionChange?.(selected);
     }, [rowSelection]);
 
@@ -104,7 +123,8 @@ export default function DataTable<TData>({
     }, [table.getState().pagination.pageIndex]);
 
     React.useEffect(() => {
-        if (onPageSizeChange) onPageSizeChange(table.getState().pagination.pageSize);
+        if (onPageSizeChange)
+            onPageSizeChange(table.getState().pagination.pageSize);
     }, [table.getState().pagination.pageSize]);
 
     return (
@@ -112,31 +132,56 @@ export default function DataTable<TData>({
             <Toolbar
                 globalFilter={globalFilter}
                 setGlobalFilter={setGlobalFilter}
-                columns={(columns as any[] ?? []).map((c) => ({ id: c.accessorKey ?? c.id ?? String(c.header), header: typeof c.header === 'string' ? c.header : String(c.header) }))}
+                columns={((columns as any[]) ?? []).map((c) => ({
+                    id: c.accessorKey ?? c.id ?? String(c.header),
+                    header:
+                        typeof c.header === 'string'
+                            ? c.header
+                            : String(c.header),
+                }))}
                 columnVisibility={columnVisibility}
-                toggleColumn={(id) => setColumnVisibility((s) => ({ ...s, [id]: !s[id] }))}
-                selectedCount={Object.keys(table.getState().rowSelection ?? {}).length}
+                toggleColumn={(id) =>
+                    setColumnVisibility((s) => ({ ...s, [id]: !s[id] }))
+                }
+                selectedCount={
+                    Object.keys(table.getState().rowSelection ?? {}).length
+                }
             />
 
-            <div className="overflow-auto border rounded">
-                <table className="min-w-full text-sm table-auto">
+            <div className="overflow-auto rounded border">
+                <table className="min-w-full table-auto text-sm">
                     <thead className="bg-gray-50 text-left">
                         {table.getHeaderGroups().map((headerGroup) => (
                             <tr key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => (
-                                    <th key={header.id} className="px-3 py-2 align-bottom">
+                                    <th
+                                        key={header.id}
+                                        className="px-3 py-2 align-bottom"
+                                    >
                                         {header.isPlaceholder ? null : (
                                             <div
                                                 {...{
-                                                    onClick: header.column.getToggleSortingHandler(),
-                                                    className: classNames('flex items-center gap-2 cursor-pointer select-none', header.column.getCanSort() ? '' : 'cursor-default'),
+                                                    onClick:
+                                                        header.column.getToggleSortingHandler(),
+                                                    className: classNames(
+                                                        'flex items-center gap-2 cursor-pointer select-none',
+                                                        header.column.getCanSort()
+                                                            ? ''
+                                                            : 'cursor-default',
+                                                    ),
                                                 }}
                                             >
-                                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                                {flexRender(
+                                                    header.column.columnDef
+                                                        .header,
+                                                    header.getContext(),
+                                                )}
                                                 {{
                                                     asc: ' 🔼',
                                                     desc: ' 🔽',
-                                                }[header.column.getIsSorted() as string] ?? null}
+                                                }[
+                                                    header.column.getIsSorted() as string
+                                                ] ?? null}
                                             </div>
                                         )}
                                     </th>
@@ -147,23 +192,38 @@ export default function DataTable<TData>({
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={cols.length} className="p-6 text-center">
+                                <td
+                                    colSpan={cols.length}
+                                    className="p-6 text-center"
+                                >
                                     Loading...
                                 </td>
                             </tr>
                         ) : table.getRowModel().rows.length ? (
                             table.getRowModel().rows.map((row) => (
-                                <tr key={row.id} className="border-t even:bg-gray-50">
+                                <tr
+                                    key={row.id}
+                                    className="border-t even:bg-gray-50"
+                                >
                                     {row.getVisibleCells().map((cell) => (
-                                        <td key={cell.id} className="px-3 py-2 align-top">
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        <td
+                                            key={cell.id}
+                                            className="px-3 py-2 align-top"
+                                        >
+                                            {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext(),
+                                            )}
                                         </td>
                                     ))}
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={cols.length} className="p-6 text-center text-sm text-muted-foreground">
+                                <td
+                                    colSpan={cols.length}
+                                    className="p-6 text-center text-sm text-muted-foreground"
+                                >
                                     No data
                                 </td>
                             </tr>
@@ -173,7 +233,11 @@ export default function DataTable<TData>({
             </div>
 
             <Pagination
-                pageCount={serverSide && total ? Math.max(1, Math.ceil(total / pageSize)) : table.getPageCount()}
+                pageCount={
+                    serverSide && total
+                        ? Math.max(1, Math.ceil(total / pageSize))
+                        : table.getPageCount()
+                }
                 pageIndex={table.getState().pagination.pageIndex}
                 pageSize={table.getState().pagination.pageSize}
                 gotoPage={(i) => table.setPageIndex(i)}

@@ -222,7 +222,10 @@ export default function SuppliersIndex({
                             </div>
                             <div className="grid gap-2">
                                 <Label>Status</Label>
-                                <Select value={status} onValueChange={setStatus}>
+                                <Select
+                                    value={status}
+                                    onValueChange={setStatus}
+                                >
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>

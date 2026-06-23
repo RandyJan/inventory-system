@@ -1,3 +1,4 @@
+import { showGlobalLoadingIndicator } from '@/components/global-loading-indicator';
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -8,6 +9,7 @@ import {
 import { resolveUrl } from '@/lib/utils';
 import { type NavGroup, type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
+import { type MouseEvent } from 'react';
 
 export function NavMain({
     items = [],
@@ -19,6 +21,25 @@ export function NavMain({
     const page = usePage();
     const navGroups =
         groups.length > 0 ? groups : [{ title: 'Platform', items }];
+
+    const showLoadingOnModuleClick = (
+        event: MouseEvent<Element>,
+        item: NavItem,
+    ) => {
+        if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey ||
+            page.url === resolveUrl(item.href)
+        ) {
+            return;
+        }
+
+        showGlobalLoadingIndicator();
+    };
 
     return (
         <>
@@ -36,7 +57,16 @@ export function NavMain({
                                         )}
                                         tooltip={{ children: item.title }}
                                     >
-                                        <Link href={item.href} prefetch>
+                                        <Link
+                                            href={item.href}
+                                            prefetch
+                                            onClick={(event) =>
+                                                showLoadingOnModuleClick(
+                                                    event,
+                                                    item,
+                                                )
+                                            }
+                                        >
                                             {item.icon && <item.icon />}
                                             <span>{item.title}</span>
                                         </Link>
